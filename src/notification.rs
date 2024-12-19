@@ -102,14 +102,14 @@ impl Notifications {
             Notification::Highlight {
                 enabled,
                 user,
-                channel,
+                target,
             } => {
                 if *enabled {
                     self._execute(
                         &config.highlight,
                         notification,
                         "Highlight",
-                        format!("{} highlighted you in {}", user.nickname(), channel),
+                        format!("{} highlighted you in {}", user.nickname(), target),
                     );
                 }
             }
