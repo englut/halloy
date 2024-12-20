@@ -25,7 +25,7 @@ use chrono::Utc;
 use data::config::{self, Config};
 use data::history::{self, manager::Broadcast};
 use data::version::Version;
-use data::{environment, server, target, version, Server, Url, User};
+use data::{client::Notification, environment, server, target, version, Server, Url, User};
 use iced::widget::{column, container};
 use iced::{padding, Length, Subscription, Task};
 use screen::{dashboard, help, migration, welcome};
@@ -34,6 +34,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use self::event::{events, Event};
 use self::modal::Modal;
+use self::notification::Notifications;
 use self::widget::Element;
 use self::window::Window;
 
@@ -131,6 +132,7 @@ struct Halloy {
     modal: Option<Modal>,
     main_window: Window,
     pending_logs: Vec<data::log::Record>,
+    notifications: Notifications,
 }
 
 impl Halloy {
@@ -194,6 +196,7 @@ impl Halloy {
                 modal: None,
                 main_window,
                 pending_logs: vec![],
+                notifications: Notifications::new(),
             },
             command,
         )
@@ -432,7 +435,11 @@ impl Halloy {
                             .broadcast(&server, &self.config, sent_time, Broadcast::Connecting)
                             .map(Message::Dashboard)
                     } else {
-                        notification::disconnected(&self.config.notifications, &server);
+                        self.notifications.notify(
+                            &self.config.notifications,
+                            &Notification::Disconnected,
+                            Some(&server),
+                        );
 
                         dashboard
                             .broadcast(
@@ -457,13 +464,21 @@ impl Halloy {
                     };
 
                     if is_initial {
-                        notification::connected(&self.config.notifications, &server);
+                        self.notifications.notify(
+                            &self.config.notifications,
+                            &Notification::Connected,
+                            Some(&server),
+                        );
 
                         dashboard
                             .broadcast(&server, &self.config, sent_time, Broadcast::Connected)
                             .map(Message::Dashboard)
                     } else {
-                        notification::reconnected(&self.config.notifications, &server);
+                        self.notifications.notify(
+                            &self.config.notifications,
+                            &Notification::Reconnected,
+                            Some(&server),
+                        );
 
                         dashboard
                             .broadcast(&server, &self.config, sent_time, Broadcast::Reconnected)
@@ -694,7 +709,7 @@ impl Halloy {
                                             }
                                         }
 
-                                        match notification {
+                                        match &notification {
                                             data::client::Notification::DirectMessage(user) => {
                                                 if let Ok(query) = target::Query::parse(
                                                     user.as_str(),
@@ -702,8 +717,6 @@ impl Halloy {
                                                     statusmsg,
                                                     casemapping,
                                                 ) {
-                                                    // only send notification if query has unread
-                                                    // or if window is not focused
                                                     if dashboard.history().has_unread(
                                                         &history::Kind::Query(
                                                             server.clone(),
@@ -711,48 +724,28 @@ impl Halloy {
                                                         ),
                                                     ) || !self.main_window.focused
                                                     {
-                                                        notification::direct_message(
+                                                        self.notifications.notify(
                                                             &self.config.notifications,
-                                                            user.nickname(),
+                                                            &notification,
+                                                            None::<Server>,
                                                         );
                                                     }
                                                 }
                                             }
                                             data::client::Notification::Highlight {
-                                                enabled,
-                                                user,
-                                                target,
-                                            } => {
-                                                if enabled {
-                                                    notification::highlight(
-                                                        &self.config.notifications,
-                                                        user.nickname(),
-                                                        target,
-                                                    );
-                                                }
+                                                enabled: _,
+                                                user: _,
+                                                target: _,
                                             }
-                                            data::client::Notification::MonitoredOnline(
-                                                targets,
-                                            ) => {
-                                                targets.into_iter().for_each(|target| {
-                                                    notification::monitored_online(
-                                                        &self.config.notifications,
-                                                        target.nickname().to_owned(),
-                                                        server.clone(),
-                                                    );
-                                                });
+                                            | data::client::Notification::MonitoredOnline(_)
+                                            | data::client::Notification::MonitoredOffline(_) => {
+                                                self.notifications.notify(
+                                                    &self.config.notifications,
+                                                    &notification,
+                                                    Some(&server),
+                                                );
                                             }
-                                            data::client::Notification::MonitoredOffline(
-                                                targets,
-                                            ) => {
-                                                targets.into_iter().for_each(|target| {
-                                                    notification::monitored_offline(
-                                                        &self.config.notifications,
-                                                        target,
-                                                        server.clone(),
-                                                    );
-                                                });
-                                            }
+                                            _ => {}
                                         }
                                     }
                                     data::client::Event::FileTransferRequest(request) => {

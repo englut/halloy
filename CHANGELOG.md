@@ -4,8 +4,9 @@ Added:
 - New configuration options
   - Ability to disable dimming of away usernames. See [buffer configuartion](https://halloy.squidowl.org/configuration/buffer/away.html).
 - Enable support for IRCv3 `chathistory`
-- Highlight notifications for `/me` actions
 - Case mapping support via `ISUPPORT`
+- Highlight notifications for `/me` actions
+- Timeout delay for notifications
 
 # 2024.14 (2024-10-29)
 
