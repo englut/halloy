@@ -1122,9 +1122,10 @@ impl Halloy {
             url::listen().map(Message::RouteReceived),
             events().map(|(window, event)| Message::Event(window, event)),
             window::events().map(|(window, event)| Message::Window(window, event)),
-            // Enable once dark_light has a proper way to detect appereance changes without spiking CPU.
-            // See: https://github.com/frewsxcv/rust-dark-light/issues/47
-            // appearance::subscription().map(Message::AppearanceChange),
+            // Remove macOS exception once dark_light has a proper way to detect appereance changes without spiking CPU.
+            // See: https://github.com/rust-dark-light/dark-light/issues/47
+            #[cfg(not(target_os = "macos"))]
+            appearance::subscription().map(Message::AppearanceChange),
             tick,
             streams,
         ])
