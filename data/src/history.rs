@@ -17,6 +17,7 @@ use crate::{
     Buffer, Message, Server, buffer, compression, environment, isupport,
 };
 
+pub mod filter;
 pub mod manager;
 pub mod metadata;
 
