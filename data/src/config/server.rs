@@ -5,8 +5,12 @@ use std::time::Duration;
 use irc::connection;
 use serde::{Deserialize, Deserializer};
 
-use crate::config;
-use crate::serde::default_bool_true;
+use crate::{
+    User, config,
+    history::filter::{Filter, FilterChain},
+    message::Source,
+    serde::default_bool_true,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Server {
@@ -44,10 +48,8 @@ pub struct Server {
     pub password_file_first_line_only: bool,
     /// The command which outputs a password to connect to the server.
     pub password_command: Option<String>,
-    /// A list of nicknames to hide messages from - the messages are not
-    /// removed, and will be shown again when the nick is removed from the list
-    #[serde(default)]
-    pub ignored_nicks: Vec<String>,
+    /// Filter settings for the server, e.g. ignored nicks
+    pub filters: Option<Filters>,
     /// A list of channels to join on connection.
     #[serde(default)]
     pub channels: Vec<String>,
@@ -176,7 +178,7 @@ impl Default for Server {
             password_file: Option::default(),
             password_file_first_line_only: default_bool_true(),
             password_command: Option::default(),
-            ignored_nicks: Default::default(),
+            filters: Default::default(),
             channels: Vec::default(),
             channel_keys: HashMap::default(),
             ping_time: default_ping_time(),
@@ -203,6 +205,18 @@ impl Default for Server {
 pub enum IdentifySyntax {
     NickPassword,
     PasswordNick,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize, Default)]
+pub struct Filters {
+    #[serde(default, deserialize_with = "deserialize_filters_from_strings")]
+    ignore: Vec<Filter>,
+}
+
+impl Filters {
+    pub fn borrow_as_chain(&self) -> FilterChain {
+        FilterChain::from(&self.ignore)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
@@ -297,6 +311,26 @@ impl Sasl {
             None
         }
     }
+}
+fn deserialize_filters_from_strings<'de, D>(
+    deserializer: D,
+) -> Result<Vec<Filter>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let strings: Vec<String> = Deserialize::deserialize(deserializer)?;
+    let sources: Vec<Source> = strings
+        .into_iter()
+        .filter_map(|string| {
+            let Ok(user) = User::try_from(string) else {
+                return None;
+            };
+            Some(Source::User(user))
+        })
+        .collect();
+    let filter = Filter::ExcludeSources(sources);
+    log::debug!("loaded filter for ignored nicks {:?}", filter);
+    Ok(vec![filter])
 }
 
 fn deserialize_duration_from_u64<'de, D>(
