@@ -19,6 +19,7 @@ Added:
 - Configuration options for font weight and bold weight
 - `/delay <seconds>` command that can be used to control the timing of commands sent on connect
 - Configuration option for the ordering of servers in the sidebar
+- Config option to ignore nickname, along with framework to add new filters
 
 Fixed:
 
