@@ -116,7 +116,7 @@ pub fn view<'a>(
         max_nick_chars,
         max_prefix_chars,
         ..
-    }) = history.get_messages(&kind.into(), Some(state.limit), &config.buffer)
+    }) = history.get_messages(&kind.into(), Some(state.limit), config)
     else {
         return column![].into();
     };
@@ -431,7 +431,7 @@ impl State {
                         }) = history.get_messages(
                             &kind.into(),
                             Some(self.limit),
-                            &config.buffer,
+                            config,
                         ) {
                             if let Some(oldest) =
                                 old_messages.iter().chain(&new_messages).next()
@@ -701,7 +701,7 @@ impl State {
             old_messages,
             new_messages,
             ..
-        }) = history.get_messages(&kind.into(), None, &config.buffer)
+        }) = history.get_messages(&kind.into(), None, config)
         else {
             // We're still loading history, which will trigger
             // scroll_to_backlog after loading. If this is set,
@@ -746,7 +746,7 @@ impl State {
             total,
             old_messages,
             ..
-        }) = history.get_messages(&kind.into(), None, &config.buffer)
+        }) = history.get_messages(&kind.into(), None, config)
         else {
             return Task::none();
         };
