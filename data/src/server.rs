@@ -219,7 +219,7 @@ impl Map {
         self.0.contains_key(server)
     }
 
-    pub fn get(&self, server: &Server) -> Option<&config::Server> {
+    pub fn get(&self, server: &Server) -> Option<&Arc<config::Server>> {
         self.0.get(server)
     }
 
