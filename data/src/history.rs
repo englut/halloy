@@ -34,6 +34,12 @@ const TRUNC_COUNT: usize = 500;
 const FLUSH_AFTER_LAST_RECEIVED: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ReactionTarget {
+    pub sent_by_self: bool,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Kind {
     Server(Server),
     Channel(Server, target::Channel),
@@ -1001,7 +1007,7 @@ impl History {
         id: message::Id,
         reaction: Reaction,
         server_time: DateTime<Utc>,
-    ) {
+    ) -> Option<ReactionTarget> {
         match self {
             History::Partial {
                 messages,
@@ -1014,7 +1020,12 @@ impl History {
                     .rev()
                     .find(|m| m.id.as_deref() == Some(&*id))
                 {
+                    let target = ReactionTarget {
+                        sent_by_self: message.is_echo,
+                        text: message.text(),
+                    };
                     message.reactions.push(reaction);
+                    return Some(target);
                 } else {
                     let pending = pending_reactions
                         .entry(id)
@@ -1031,16 +1042,20 @@ impl History {
                 last_updated_at,
                 ..
             } => {
-                let Some(message) =
-                    find_reaction_target(messages, &id, &server_time)
-                else {
-                    return;
-                };
+                let message =
+                    find_reaction_target(messages, &id, &server_time)?;
                 message.reactions.push(reaction);
 
                 *last_updated_at = Some(Instant::now());
+
+                let target = ReactionTarget {
+                    sent_by_self: message.is_echo,
+                    text: message.text(),
+                };
+                return Some(target);
             }
         }
+        None
     }
 
     pub fn last_seen(&self) -> HashMap<Nick, DateTime<Utc>> {

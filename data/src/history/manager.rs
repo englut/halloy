@@ -10,7 +10,9 @@ use tokio::time::Instant;
 
 use super::filter::{Filter, FilterChain};
 use super::reroute::RerouteRules;
-use crate::history::{self, History, MessageReferences, ReadMarker, metadata};
+use crate::history::{
+    self, History, MessageReferences, ReactionTarget, ReadMarker, metadata,
+};
 use crate::message::broadcast::{self, Broadcast};
 use crate::message::{self, Limit};
 use crate::reaction::{self, Reaction};
@@ -435,7 +437,10 @@ impl Manager {
         &mut self,
         server: &Server,
         reaction: reaction::Context,
-    ) -> Option<impl Future<Output = Message> + use<>> {
+    ) -> (
+        Option<ReactionTarget>,
+        Option<impl Future<Output = Message> + use<>>,
+    ) {
         let kind =
             history::Kind::from_target(server.clone(), reaction.target.clone());
         self.data.add_reaction(
@@ -1809,31 +1814,35 @@ impl Data {
         in_reply_to: message::Id,
         reaction: Reaction,
         server_time: DateTime<Utc>,
-    ) -> Option<impl Future<Output = Message> + use<>> {
+    ) -> (
+        Option<ReactionTarget>,
+        Option<impl Future<Output = Message> + use<>>,
+    ) {
         match self.map.entry(kind.clone()) {
             hash_map::Entry::Occupied(mut entry) => {
-                entry.get_mut().add_reaction(
+                let target = entry.get_mut().add_reaction(
                     in_reply_to,
                     reaction,
                     server_time,
                 );
 
-                None
+                (target, None)
             }
             hash_map::Entry::Vacant(entry) => {
-                entry.insert(History::partial(kind.clone())).add_reaction(
-                    in_reply_to,
-                    reaction,
-                    server_time,
-                );
+                let target = entry
+                    .insert(History::partial(kind.clone()))
+                    .add_reaction(in_reply_to, reaction, server_time);
 
-                Some(
-                    async move {
-                        let loaded =
-                            history::metadata::load(kind.clone()).await;
-                        Message::UpdatePartial(kind, loaded)
-                    }
-                    .boxed(),
+                (
+                    target,
+                    Some(
+                        async move {
+                            let loaded =
+                                history::metadata::load(kind.clone()).await;
+                            Message::UpdatePartial(kind, loaded)
+                        }
+                        .boxed(),
+                    ),
                 )
             }
         }
