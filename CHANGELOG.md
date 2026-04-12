@@ -19,6 +19,7 @@ Added:
 - `/invite` command tooltip and validation provided, and display of `INVITE`-related messages improved
 - Ability to customize the arrows used for directional messages such as join, part, quit, kick, and CTCP messages.
 - Unread indicators for queries can be hidden via `sidebar.unread_indicator.exclude`
+- Notification for reacts.
 
 Changed:
 
