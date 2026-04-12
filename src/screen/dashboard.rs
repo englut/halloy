@@ -112,6 +112,7 @@ pub enum Event {
         has_credentials: bool,
         window: window::Id,
     },
+    PendingReaction(Server, Option<ReactionTarget>, reaction::Context),
 }
 
 impl Dashboard {
@@ -978,6 +979,18 @@ impl Dashboard {
                                     );
                                 }
                             }
+                        }
+                        history::manager::Event::PendingReaction(
+                            server,
+                            target,
+                            context,
+                        ) => {
+                            return (
+                                Task::none(),
+                                Some(Event::PendingReaction(
+                                    server, target, context,
+                                )),
+                            );
                         }
                     }
                 }

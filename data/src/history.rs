@@ -13,11 +13,11 @@ use tokio::time::Instant;
 pub use self::manager::{Manager, Resource};
 pub use self::metadata::{Metadata, ReadMarker};
 use crate::message::{self, MessageReferences, Source};
-use crate::reaction::{self, Reaction};
 use crate::target::{self, Target};
 use crate::user::Nick;
 use crate::{
-    Buffer, Message, Server, buffer, compression, config, environment, isupport,
+    Buffer, Message, Server, buffer, compression, config, environment,
+    isupport, reaction,
 };
 
 pub mod filter;
@@ -1004,9 +1004,7 @@ impl History {
 
     pub fn add_reaction(
         &mut self,
-        id: message::Id,
-        reaction: Reaction,
-        server_time: DateTime<Utc>,
+        reaction: reaction::Context,
     ) -> Option<ReactionTarget> {
         match self {
             History::Partial {
@@ -1018,22 +1016,24 @@ impl History {
                 if let Some(message) = messages
                     .iter_mut()
                     .rev()
-                    .find(|m| m.id.as_deref() == Some(&*id))
+                    .find(|m| m.id.as_deref() == Some(&*reaction.in_reply_to))
                 {
                     let target = ReactionTarget {
                         sent_by_self: message.is_echo,
                         text: message.text(),
                     };
-                    message.reactions.push(reaction);
+                    message.reactions.push(reaction.inner);
                     return Some(target);
                 } else {
                     let pending = pending_reactions
-                        .entry(id)
-                        .or_insert(reaction::Pending::new(server_time));
+                        .entry(reaction.in_reply_to)
+                        .or_insert(reaction::Pending::new(
+                            reaction.server_time,
+                        ));
 
                     pending.server_time =
-                        (pending.server_time).min(server_time);
-                    pending.reactions.push(reaction);
+                        (pending.server_time).min(reaction.server_time);
+                    pending.reactions.push(reaction.inner);
                 }
                 *last_updated_at = Some(Instant::now());
             }
@@ -1042,9 +1042,12 @@ impl History {
                 last_updated_at,
                 ..
             } => {
-                let message =
-                    find_reaction_target(messages, &id, &server_time)?;
-                message.reactions.push(reaction);
+                let message = find_reaction_target(
+                    messages,
+                    &reaction.in_reply_to,
+                    &reaction.server_time,
+                )?;
+                message.reactions.push(reaction.inner);
 
                 *last_updated_at = Some(Instant::now());
 
