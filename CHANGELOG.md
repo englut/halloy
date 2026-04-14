@@ -9,6 +9,7 @@ Added:
 - Customize the character used to indicate a nickname was truncated with `display.truncation_character`
 - Support for IRCv3 `draft/message-redaction`
 - Support for IRCv3 metadata `display-name`, `avatar`, `pronouns`, `homepage`, `color`, `status` keys
+- IRCv3 `no-implicit-names` support
 
 Fixed:
 
