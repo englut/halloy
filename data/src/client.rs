@@ -1895,11 +1895,13 @@ impl Client {
                     if let Some(client_channel) =
                         self.chanmap.get_mut(&target_channel)
                     {
+                        let bot_mode_char =
+                            isupport::get_bot_mode_char(&self.isupport);
                         client_channel.update_user_away(
                             nick,
                             flags,
                             casemapping,
-                            isupport::get_bot_mode_char(&self.isupport),
+                            bot_mode_char,
                         );
 
                         if let Some(who_poll) = self
@@ -1927,6 +1929,9 @@ impl Client {
                         ) {
                             if flags.starts_with('G') {
                                 user.update_away(true);
+                            }
+                            if let Some(bot_char) = bot_mode_char {
+                                user.update_bot(flags.contains(bot_char));
                             }
                             client_channel.users.insert(user);
                         }
@@ -1976,6 +1981,8 @@ impl Client {
                             .iter_mut()
                             .find(|who_poll| who_poll.channel == target_channel)
                     {
+                        let bot_mode_char =
+                            isupport::get_bot_mode_char(&self.isupport);
                         match &who_poll.status {
                             WhoStatus::Requested(
                                 source,
@@ -2024,9 +2031,7 @@ impl Client {
                                         nick,
                                         flags,
                                         casemapping,
-                                        isupport::get_bot_mode_char(
-                                            &self.isupport,
-                                        ),
+                                        bot_mode_char,
                                     );
                                 } else if token
                                     == WhoXPollParameters::WithAccountName
@@ -2036,9 +2041,7 @@ impl Client {
                                         nick,
                                         flags,
                                         casemapping,
-                                        isupport::get_bot_mode_char(
-                                            &self.isupport,
-                                        ),
+                                        bot_mode_char,
                                     );
 
                                     client_channel.update_user_accountname(
@@ -2063,6 +2066,9 @@ impl Client {
                             }
                             if flags.starts_with('G') {
                                 user.update_away(true);
+                            }
+                            if let Some(bot_char) = bot_mode_char {
+                                user.update_bot(flags.contains(bot_char));
                             }
                             client_channel.users.insert(user);
                         }
