@@ -1897,7 +1897,7 @@ impl Client {
                     {
                         let bot_mode_char =
                             isupport::get_bot_mode_char(&self.isupport);
-                        client_channel.update_user_away(
+                        client_channel.update_user_status(
                             nick,
                             flags,
                             casemapping,
@@ -2027,7 +2027,7 @@ impl Client {
                             if let Ok(token) = token.parse::<WhoToken>() {
                                 if token == WhoXPollParameters::Default.token()
                                 {
-                                    client_channel.update_user_away(
+                                    client_channel.update_user_status(
                                         nick,
                                         flags,
                                         casemapping,
@@ -2037,7 +2037,7 @@ impl Client {
                                     == WhoXPollParameters::WithAccountName
                                         .token()
                                 {
-                                    client_channel.update_user_away(
+                                    client_channel.update_user_status(
                                         nick,
                                         flags,
                                         casemapping,
@@ -5385,7 +5385,7 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn update_user_away(
+    pub fn update_user_status(
         &mut self,
         user: &str,
         flags: &str,
