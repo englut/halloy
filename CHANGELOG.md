@@ -15,6 +15,7 @@ Fixed:
 
 - `NICK` and `QUIT` messages returned by `draft/event-playback` (`chathistory`)
 - Backlog separator text colour now follows `buffer.backlog_rule`
+- Fix `tor` enabled builds
 - Distinguish between reacts in chathistory vs active history
 - Channel matching on single line only
 - Do not hide consecutive nicknames if the user's displayed access levels or bot mode changes
@@ -34,7 +35,7 @@ Thanks:
 
 - Contributions: @bb010g, @furudean, @englut, @luca020400, @4e554c4c
 - Bug reports: @bb010g, daniiooo
-- Feature requests: @WinnerWind
+- Feature requests: @WinnerWind, @englut
 
 # 2026.6 (2026-04-21)
 
