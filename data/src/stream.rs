@@ -498,7 +498,6 @@ async fn _run(
                                 default_proxy.as_ref(),
                             ) {
                                 connection_attempt = 0;
-
                                 let _ = sender.unbounded_send(
                                     Update::Disconnected {
                                         server: server.clone(),
