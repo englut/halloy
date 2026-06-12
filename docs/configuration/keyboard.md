@@ -68,4 +68,5 @@ Below is a list of all actions which can be mapped.
 | `theme_editor`                 | Toggle Theme Editor Window          | <kbd>⌘</kbd> + <kbd>t</kbd>                         | <kbd>ctrl</kbd> + <kbd>t</kbd>                      |
 | `highlights`                   | Toggle Highlights Window            | <kbd>⌘</kbd> + <kbd>i</kbd>                         | <kbd>ctrl</kbd> + <kbd>i</kbd>                      |
 | `quit_application`             | Quit Halloy                         | None                                                | None                                                |
-| `open_config_file`             | Open settings file in system editor | <kbd>⌘</kbd> + <kbd>,</kbd>                         | <kbd>ctrl</kbd> + <kbd>,</kbd>None                  |
+| `open_config_editor`           | Toggle Config Editor Buffer         | <kbd>⌘</kbd> + <kbd>,</kbd>                         | <kbd>ctrl</kbd> + <kbd>,</kbd>                      |
+| `open_config_file`             | Open settings file in system editor | None                                                | None                                                |
