@@ -45,11 +45,9 @@ where
         limits: &iced::advanced::layout::Limits,
     ) -> layout::Node {
         let mut first_pass_tree = widget::Tree::new(&self.first_pass);
-        let layout = self.first_pass.as_widget_mut().layout(
-            &mut first_pass_tree,
-            renderer,
-            limits,
-        );
+        let first_pass = self.first_pass.as_widget_mut();
+        first_pass.diff(&mut first_pass_tree);
+        let layout = first_pass.layout(&mut first_pass_tree, renderer, limits);
 
         let new_limits = layout::Limits::new(
             Size::ZERO,
