@@ -2,7 +2,7 @@ use std::slice;
 
 use iced::advanced::widget::{Operation, operation, tree};
 use iced::advanced::{
-    self, Clipboard, Layout, Shell, Widget, layout, overlay, renderer, widget,
+    self, Layout, Shell, Widget, layout, overlay, renderer, widget,
 };
 pub use iced::widget::container::{Style, StyleFn};
 use iced::widget::{column, container};
@@ -145,10 +145,6 @@ where
         self.base.as_widget().size()
     }
 
-    fn size_hint(&self) -> Size<Length> {
-        self.base.as_widget().size_hint()
-    }
-
     fn layout(
         &mut self,
         tree: &mut widget::Tree,
@@ -194,12 +190,8 @@ where
         })
     }
 
-    fn children(&self) -> Vec<widget::Tree> {
-        vec![widget::Tree::new(&self.base)]
-    }
-
-    fn diff(&self, tree: &mut widget::Tree) {
-        tree.diff_children(slice::from_ref(&self.base));
+    fn diff(&mut self, tree: &mut widget::Tree) {
+        tree.diff_children(slice::from_mut(&mut self.base));
     }
 
     fn operate(
@@ -228,7 +220,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -238,7 +229,6 @@ where
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             viewport,
         );
@@ -465,10 +455,10 @@ where
     // Ensure overlay is created / diff'd
     match state.status {
         Status::Open { .. } => match menu {
-            Some(menu) => state.menu_tree.diff(&*menu),
+            Some(menu) => state.menu_tree.diff(&mut *menu),
             None => {
-                let _menu = build_menu(entries, entry);
-                state.menu_tree.diff(&_menu);
+                let mut _menu = build_menu(entries, entry);
+                state.menu_tree.diff(&mut _menu);
                 *menu = Some(_menu);
             }
         },
@@ -633,7 +623,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
         if let Event::Mouse(mouse::Event::ButtonPressed { .. }) = &event
@@ -658,7 +647,6 @@ where
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             &layout.bounds(),
         );

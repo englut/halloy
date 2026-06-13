@@ -1,7 +1,7 @@
 use data::shortcut;
 pub use data::shortcut::Command;
 use iced::advanced::widget::Tree;
-use iced::advanced::{Clipboard, Layout, Shell};
+use iced::advanced::{Layout, Shell};
 use iced::{Event, keyboard, mouse};
 
 use super::key_press::is_numpad;
@@ -24,7 +24,6 @@ where
                   layout: Layout<'_>,
                   cursor: mouse::Cursor,
                   renderer: &Renderer,
-                  clipboard: &mut dyn Clipboard,
                   shell: &mut Shell<'_, Message>,
                   viewport: &iced::Rectangle| {
                 match &event {
@@ -66,8 +65,7 @@ where
                 }
 
                 inner.as_widget_mut().update(
-                    tree, event, layout, cursor, renderer, clipboard, shell,
-                    viewport,
+                    tree, event, layout, cursor, renderer, shell, viewport,
                 );
             },
         )

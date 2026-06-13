@@ -71,7 +71,7 @@ impl About {
                 self.copied = Some(field);
 
                 Task::batch(vec![
-                    clipboard::write(value),
+                    clipboard::write(value).discard(),
                     Task::perform(
                         async move {
                             time::sleep(Duration::from_secs(1)).await;

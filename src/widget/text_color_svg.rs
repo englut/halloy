@@ -1,6 +1,6 @@
 use iced::advanced::svg::Svg;
 use iced::advanced::widget::Tree;
-use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, renderer, svg};
+use iced::advanced::{Layout, Shell, Widget, layout, renderer, svg};
 use iced::widget::text::{Catalog, Style, StyleFn};
 use iced::{
     ContentFit, Element, Event, Length, Point, Radians, Rectangle, Rotation,
@@ -137,7 +137,6 @@ where
         _layout: Layout<'_>,
         _cursor: mouse::Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         _shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {

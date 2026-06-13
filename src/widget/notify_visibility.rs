@@ -1,4 +1,4 @@
-use iced::advanced::{Clipboard, Layout, Shell, widget};
+use iced::advanced::{Layout, Shell, widget};
 use iced::{Event, Padding, Rectangle, mouse, window};
 
 use super::{Element, Renderer, decorate};
@@ -37,7 +37,6 @@ where
                   layout: Layout<'_>,
                   cursor: mouse::Cursor,
                   renderer: &Renderer,
-                  clipboard: &mut dyn Clipboard,
                   shell: &mut Shell<'_, Message>,
                   viewport: &Rectangle| {
                 if let Event::Window(window::Event::RedrawRequested(_)) = &event
@@ -74,8 +73,7 @@ where
                 }
 
                 inner.as_widget_mut().update(
-                    tree, event, layout, cursor, renderer, clipboard, shell,
-                    viewport,
+                    tree, event, layout, cursor, renderer, shell, viewport,
                 );
             },
         )

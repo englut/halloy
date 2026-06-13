@@ -169,6 +169,9 @@ fn settings(config_load: &Result<Config, config::Error>) -> iced::Settings {
         default_font: font::MONO.clone().into(),
         default_text_size: default_text_size.into(),
         backend: backend_from_config(runtime.backend),
+        power_preference: power_preference_from_config(
+            runtime.power_preference,
+        ),
         id: None,
         antialiasing: runtime.antialiasing,
         fonts: font::load(),
@@ -191,9 +194,24 @@ fn backend_from_config(backend: runtime::Backend) -> iced::Backend {
     }
 }
 
+fn power_preference_from_config(
+    power_preference: runtime::PowerPreference,
+) -> iced::PowerPreference {
+    match power_preference {
+        runtime::PowerPreference::None => iced::PowerPreference::None,
+        runtime::PowerPreference::LowPower => iced::PowerPreference::LowPower,
+        runtime::PowerPreference::HighPerformance => {
+            iced::PowerPreference::HighPerformance
+        }
+    }
+}
+
 fn configure_runtime(runtime: Runtime) -> Task<Message> {
     iced::backend::configure(iced::backend::Settings {
         backend: backend_from_config(runtime.backend),
+        power_preference: power_preference_from_config(
+            runtime.power_preference,
+        ),
         antialiasing: runtime.antialiasing,
         vsync: runtime.vsync,
     })

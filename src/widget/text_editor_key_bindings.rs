@@ -1,3 +1,4 @@
+use iced::advanced::graphics::futures::MaybeSend;
 use iced::widget::text_editor;
 use iced::{Task, clipboard};
 
@@ -146,20 +147,23 @@ fn platform_kill_action(
     }
 }
 
-pub fn perform_kill<Message>(
+pub fn perform_kill<T>(
     content: &mut text_editor::Content,
     history: &mut History,
     kill: Kill,
     save_to_clipboard: bool,
     kill_to_clipboard: bool,
-) -> Task<Message> {
+) -> Task<T>
+where
+    T: MaybeSend + 'static,
+{
     history.checkpoint(content);
     content.perform(text_editor::Action::Select(kill.motion()));
 
     let task = if save_to_clipboard && kill_to_clipboard {
-        content
-            .selection()
-            .map_or_else(Task::none, clipboard::write)
+        content.selection().map_or_else(Task::none, |content| {
+            clipboard::write(content).discard()
+        })
     } else {
         Task::none()
     };

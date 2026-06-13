@@ -4,6 +4,7 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct Runtime {
     pub backend: Backend,
+    pub power_preference: PowerPreference,
     pub vsync: bool,
     pub antialiasing: bool,
 }
@@ -12,10 +13,20 @@ impl Default for Runtime {
     fn default() -> Self {
         Self {
             backend: Backend::default(),
+            power_preference: PowerPreference::default(),
             vsync: true,
             antialiasing: false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PowerPreference {
+    #[default]
+    None,
+    LowPower,
+    HighPerformance,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]

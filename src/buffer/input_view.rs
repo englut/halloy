@@ -16,8 +16,9 @@ use data::server::Server;
 use data::target::Target;
 use data::user::{ChannelUsers, Nick};
 use data::{Config, User, client, command, message, metadata, shortcut};
+use iced::Length::Fit;
 use iced::advanced::widget::Tree;
-use iced::advanced::{Clipboard, Layout, Shell, mouse};
+use iced::advanced::{Layout, Shell, mouse};
 use iced::keyboard::{Key, key};
 use iced::widget::text::{Shaping, Wrapping};
 use iced::widget::{
@@ -346,7 +347,6 @@ pub fn view<'a>(
               layout: Layout<'_>,
               cursor: mouse::Cursor,
               renderer: &Renderer,
-              clipboard: &mut dyn Clipboard,
               shell: &mut Shell<'_, Message>,
               viewport: &iced::Rectangle| {
             if let event::Event::Mouse(mouse::Event::WheelScrolled { .. }) =
@@ -355,10 +355,9 @@ pub fn view<'a>(
                 return;
             };
 
-            inner.as_widget_mut().update(
-                tree, event, layout, cursor, renderer, clipboard, shell,
-                viewport,
-            );
+            inner
+                .as_widget_mut()
+                .update(tree, event, layout, cursor, renderer, shell, viewport);
         },
     );
 
@@ -511,7 +510,11 @@ pub fn view<'a>(
             .height(Length::Shrink)
             .align_y(Alignment::Center),
     )
-    .max_height((7.55 * theme::resolve_line_height(&config.font).ceil()).ceil())
+    .height(
+        Fit.max(
+            (7.55 * theme::resolve_line_height(&config.font).ceil()).ceil(),
+        ),
+    )
     .padding(8);
 
     let styled_input =
@@ -1218,12 +1221,13 @@ impl State {
                 Self::close_context_menu(main_window.id, vec![task])
             }
             Message::PasteText => {
-                let task = clipboard::read().and_then(|clipboard| {
-                    Task::done(Message::Action(text_editor::Action::Edit(
-                        text_editor::Edit::Paste(std::sync::Arc::new(
-                            clipboard,
-                        )),
-                    )))
+                let task = clipboard::read_text().then(|result| match result {
+                    Ok(clipboard) => {
+                        Task::done(Message::Action(text_editor::Action::Edit(
+                            text_editor::Edit::Paste(clipboard),
+                        )))
+                    }
+                    Err(_) => Task::none(),
                 });
 
                 Self::close_context_menu(main_window.id, vec![task])
@@ -1236,7 +1240,7 @@ impl State {
                             text_editor::Edit::Delete,
                         ));
 
-                        clipboard::write(selection.to_string())
+                        clipboard::write(selection.to_string()).discard()
                     } else {
                         Task::none()
                     };
@@ -1245,7 +1249,7 @@ impl State {
             }
             Message::Copy => {
                 let task = if let Some(input) = self.input_content.selection() {
-                    clipboard::write(input.to_string())
+                    clipboard::write(input.to_string()).discard()
                 } else {
                     Task::none()
                 };
@@ -1254,7 +1258,7 @@ impl State {
             }
             Message::CopyAll => {
                 let input = self.input_content.text();
-                let task = clipboard::write(input.to_string());
+                let task = clipboard::write(input.to_string()).discard();
 
                 Self::close_context_menu(main_window.id, vec![task])
             }
