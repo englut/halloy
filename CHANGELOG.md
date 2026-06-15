@@ -3,6 +3,7 @@
 Added:
 
 - Internal buffers (logs, highlights, etc) can be added to sidebar
+  - They can optionally be hidden depending on the presence of unread messages
 - Config editor pane for editing the config file in-app
 - Undo/redo in the message input and config editor (`ctrl`/`cmd` + `z`, `ctrl`/`cmd` + `shift` + `z`)
 - Improved legibility of the returned values of `MONITOR` list (`/monitor L`)
