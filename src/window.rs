@@ -110,6 +110,27 @@ pub enum Event {
     FileDropped(std::path::PathBuf),
 }
 
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn load_icon() -> Option<iced::window::Icon> {
+    use iced::window;
+    use image::EncodableLayout;
+
+    let img = image::load_from_memory_with_format(
+        include_bytes!("../assets/logo.png"),
+        image::ImageFormat::Png,
+    )
+    .ok()?;
+
+    let rgba = img.as_rgba8()?;
+
+    window::icon::from_rgba(
+        rgba.as_bytes().to_vec(),
+        rgba.width(),
+        rgba.height(),
+    )
+    .ok()
+}
+
 #[cfg(not(any(
     target_os = "macos",
     target_os = "linux",
@@ -125,6 +146,7 @@ pub fn settings(config: &Config) -> Settings {
     use iced::window;
 
     Settings {
+        icon: load_icon(),
         platform_specific: window::settings::PlatformSpecific {
             application_id: environment::APPLICATION_ID.to_string(),
             override_redirect: false,
@@ -153,31 +175,11 @@ pub fn settings(config: &Config) -> Settings {
 
 #[cfg(target_os = "windows")]
 pub fn settings(config: &Config) -> Settings {
-    use iced::window;
-    use image::EncodableLayout;
-
-    let img = image::load_from_memory_with_format(
-        include_bytes!("../assets/logo.png"),
-        image::ImageFormat::Png,
-    );
-    match img {
-        Ok(img) => match img.as_rgba8() {
-            Some(icon) => Settings {
-                icon: window::icon::from_rgba(
-                    icon.as_bytes().to_vec(),
-                    icon.width(),
-                    icon.height(),
-                )
-                .ok(),
-                decorations: config.platform_specific.windows.decorations,
-                transparent: true,
-                ..Default::default()
-            },
-            None => Settings::default(),
-        },
-        Err(_) => Settings {
-            ..Default::default()
-        },
+    Settings {
+        icon: load_icon(),
+        decorations: config.platform_specific.windows.decorations,
+        transparent: true,
+        ..Default::default()
     }
 }
 

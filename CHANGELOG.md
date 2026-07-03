@@ -38,10 +38,11 @@ Changed:
 - Renamed `actions.buffer.click_username` to `actions.buffer.click_nickname` for more consistent terminology
 - Moved functionality from `buffer.nickname.click` → `actions.buffer.click_nickname` and `buffer.channel.nicklist.click` → `actions.nicklist.click_nickname`
 - Windows release artifacts are signed using SignPath
+- Set window icon also on Linux for X11
 
 Thanks:
 
-- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder
+- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz
 - Bug reports: @luca020400, agent314
 
 # 2026.7.2 (2026-06-08)
