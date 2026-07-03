@@ -28,6 +28,9 @@ Fixed:
 - Disabled menu entries now block clicks from passing through
 - Preserve own away state when leaving and rejoining a channel
 - Do not panic when previewing an SVG with a very large filter
+- Reject overlong lines from the server connection instead of buffering them without bound
+- Do not panic when a server-supplied METADATA retry-after value would overflow the retry timer
+- Stop busy-looping on CPU when a DCC file-transfer peer closes its connection early
 
 Changed:
 
