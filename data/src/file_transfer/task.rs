@@ -341,6 +341,10 @@ async fn receive(
                     .await;
                 last_progress = Instant::now();
             }
+        } else {
+            // Peer closed before the full size arrived. Without this, a closed stream yields
+            // Ready(None) on every poll and this loop hot-spins at 100% CPU forever.
+            return Err(Error::TruncatedTransfer);
         }
     }
 
@@ -551,4 +555,6 @@ enum Error {
     TimeoutConnection,
     #[error("timed out waiting for remote to confirm passive request")]
     TimeoutPassive,
+    #[error("connection closed before the transfer completed")]
+    TruncatedTransfer,
 }
