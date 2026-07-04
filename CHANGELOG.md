@@ -16,6 +16,8 @@ Added:
 - Explicit portable mode
 - Theme editor can be closed via Escape
 - `actions.buffer.click_channel_discovery` to configure click behavior for channel names in the channel discovery pane (default: `"new-pane"`)
+- `sidebar.unread_indicator.exclude` no longer suppresses highlight indicators
+- New `sidebar.unread_indicator.highlight_exclude` / `sidebar.unread_indicator.highlight_include` settings for independent highlight control
 
 Fixed:
 

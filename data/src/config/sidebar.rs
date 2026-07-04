@@ -155,6 +155,8 @@ pub struct UnreadIndicator {
     pub query_as_highlight: bool,
     pub exclude: Option<Inclusivities>,
     pub include: Option<Inclusivities>,
+    pub highlight_exclude: Option<Inclusivities>,
+    pub highlight_include: Option<Inclusivities>,
 }
 
 impl Default for UnreadIndicator {
@@ -169,6 +171,8 @@ impl Default for UnreadIndicator {
             query_as_highlight: false,
             exclude: None,
             include: None,
+            highlight_exclude: None,
+            highlight_include: None,
         }
     }
 }
@@ -201,6 +205,30 @@ impl UnreadIndicator {
             is_server_included(
                 self.include.as_ref(),
                 self.exclude.as_ref(),
+                server,
+            )
+        }
+    }
+
+    pub fn should_indicate_highlight(
+        &self,
+        target: Option<&Target>,
+        server: &Server,
+        casemapping: isupport::CaseMap,
+    ) -> bool {
+        if let Some(target) = target {
+            is_target_included(
+                self.highlight_include.as_ref(),
+                self.highlight_exclude.as_ref(),
+                None,
+                target.as_target_ref(),
+                server,
+                casemapping,
+            )
+        } else {
+            is_server_included(
+                self.highlight_include.as_ref(),
+                self.highlight_exclude.as_ref(),
                 server,
             )
         }

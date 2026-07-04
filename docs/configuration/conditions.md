@@ -47,6 +47,23 @@ criteria = [{ channel = "#halloy", user = "GH-Bot" },
             { channel = "#halloy", user = "ChanServ" }]
 ```
 
+This example mutes unread indicators in a noisy channel while still showing
+highlight indicators when you are mentioned. See
+[sidebar unread indicators](/configuration/sidebar#exclude).
+
+```toml
+[sidebar.unread_indicator]
+exclude = { channels = ["#noisy-channel"] }
+```
+
+To hide highlight indicators as well, set the same conditions on `highlight_exclude`:
+
+```toml
+[sidebar.unread_indicator]
+exclude = { channels = ["#noisy-channel"] }
+highlight_exclude = { channels = ["#noisy-channel"] }
+```
+
 This example excludes messages in `#halloy` on the `libera` server only.
 
 ```toml
