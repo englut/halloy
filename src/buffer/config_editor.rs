@@ -4,6 +4,7 @@ use data::Config;
 use data::config::buffer::text_input::KeyBindings;
 use iced::advanced::text::Highlighter;
 use iced::advanced::text::highlighter::Format;
+use iced::widget::text::Wrapping;
 use iced::widget::{Space, column, container, row, rule, text, text_editor};
 use iced::{Font, Length, Task, highlighter, padding};
 
@@ -254,31 +255,34 @@ pub fn view<'a>(
     .style(theme::text::secondary)
     .font_maybe(theme::font_style::secondary(theme).map(font::get));
 
-    let section = current_toml_section(&state.content, cursor.position.line);
-    let section = container(
-        text(section.unwrap_or_default())
-            .style(theme::text::secondary)
-            .font_maybe(theme::font_style::secondary(theme).map(font::get)),
-    )
-    .width(Length::Fill)
-    .align_x(iced::Alignment::Center);
-
-    let mut info =
-        row![container(position).width(Length::Fixed(64.0)), section]
-            .spacing(8)
-            .padding(padding::bottom(6))
-            .align_y(iced::Alignment::Center);
-
-    if let Some(error) = &state.error {
-        info = info.push(tooltip(
+    let error_or_section = if let Some(error) = &state.error {
+        tooltip(
             text(error.message.as_str())
                 .style(theme::text::error)
-                .font_maybe(theme::font_style::error(theme).map(font::get)),
+                .font_maybe(theme::font_style::error(theme).map(font::get))
+                .wrapping(Wrapping::None)
+                .ellipsis(text::Ellipsis::End),
             error.details.as_deref(),
             tooltip::Position::Top,
             theme,
-        ));
-    }
+        )
+    } else {
+        let section =
+            current_toml_section(&state.content, cursor.position.line);
+
+        text(section.unwrap_or_default())
+            .style(theme::text::secondary)
+            .font_maybe(theme::font_style::secondary(theme).map(font::get))
+            .wrapping(Wrapping::None)
+            .ellipsis(text::Ellipsis::End)
+            .into()
+    };
+
+    let mut info =
+        row![position, error_or_section, Space::new().width(Length::Fill)]
+            .spacing(8)
+            .padding(padding::bottom(6))
+            .align_y(iced::Alignment::Center);
 
     let dirty_indicator: Element<'a, Message> = if state.dirty {
         tooltip(
