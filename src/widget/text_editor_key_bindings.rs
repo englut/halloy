@@ -75,6 +75,77 @@ pub fn undo_redo<Message>(
     }
 }
 
+/// Word/line deletion shortcuts (alt/cmd/ctrl + backspace/delete).
+pub fn platform_kill<Message>(
+    key_press: &text_editor::KeyPress,
+    has_selection: bool,
+    kill_binding: impl FnOnce(Kill) -> text_editor::Binding<Message>,
+) -> Option<text_editor::Binding<Message>> {
+    platform_kill_action(key_press, has_selection).map(kill_binding)
+}
+
+#[cfg(target_os = "macos")]
+fn platform_kill_action(
+    key_press: &text_editor::KeyPress,
+    has_selection: bool,
+) -> Option<Kill> {
+    use iced::keyboard::key::Named;
+
+    match key_press.key.as_ref() {
+        iced::keyboard::Key::Named(Named::Backspace)
+            if key_press.modifiers.alt() && !has_selection =>
+        {
+            Some(Kill::WordBackward)
+        }
+        iced::keyboard::Key::Named(Named::Backspace)
+            if key_press.modifiers.logo() && !has_selection =>
+        {
+            Some(Kill::ToStart)
+        }
+        iced::keyboard::Key::Named(Named::Delete)
+            if key_press.modifiers.alt() =>
+        {
+            Some(Kill::WordForward)
+        }
+        iced::keyboard::Key::Named(Named::Delete)
+            if key_press.modifiers.logo() =>
+        {
+            Some(Kill::ToEnd)
+        }
+        _ => None,
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn platform_kill_action(
+    key_press: &text_editor::KeyPress,
+    has_selection: bool,
+) -> Option<Kill> {
+    use iced::keyboard::key::Named;
+
+    match key_press.key.as_ref() {
+        iced::keyboard::Key::Named(Named::Backspace)
+            if key_press.modifiers.control() && !has_selection =>
+        {
+            Some(if key_press.modifiers.shift() {
+                Kill::ToStart
+            } else {
+                Kill::WordBackward
+            })
+        }
+        iced::keyboard::Key::Named(Named::Delete)
+            if key_press.modifiers.control() =>
+        {
+            Some(if key_press.modifiers.shift() {
+                Kill::ToEnd
+            } else {
+                Kill::WordForward
+            })
+        }
+        _ => None,
+    }
+}
+
 pub fn perform_kill<Message>(
     content: &mut text_editor::Content,
     history: &mut History,

@@ -331,6 +331,14 @@ pub fn view<'a>(
                 return Some(binding);
             }
 
+            if let Some(binding) = text_editor_key_bindings::platform_kill(
+                &key_press,
+                state.content.selection().is_some(),
+                |kill| text_editor::Binding::Custom(Message::Kill(kill, false)),
+            ) {
+                return Some(binding);
+            }
+
             if let Some(binding) = text_editor_key_bindings::undo_redo(
                 &key_press,
                 Message::Undo,

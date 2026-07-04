@@ -156,100 +156,43 @@ fn kill_binding(
     text_editor::Binding::Custom(Message::Kill(kill, true))
 }
 
-#[cfg(target_os = "macos")]
 fn platform_specific_key_bindings(
     key_press: text_editor::KeyPress,
     selection: Option<&str>,
 ) -> Option<text_editor::Binding<Message>> {
-    match key_press.key.as_ref() {
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
-            if key_press.modifiers.alt() && selection.is_none() =>
-        {
-            Some(text_editor::Binding::Custom(Message::Kill(
-                text_editor_key_bindings::Kill::WordBackward,
-                false,
-            )))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
-            if key_press.modifiers.logo() && selection.is_none() =>
-        {
-            Some(text_editor::Binding::Custom(Message::Kill(
-                text_editor_key_bindings::Kill::ToStart,
-                false,
-            )))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete)
-            if key_press.modifiers.alt() =>
-        {
-            Some(text_editor::Binding::Custom(Message::Kill(
-                text_editor_key_bindings::Kill::WordForward,
-                false,
-            )))
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete)
-            if key_press.modifiers.logo() =>
-        {
-            Some(text_editor::Binding::Custom(Message::Kill(
-                text_editor_key_bindings::Kill::ToEnd,
-                false,
-            )))
-        }
-        // cmd+v routes to Message::Paste normally, which means we lose our control flow. overwrite it with our own handler
-        iced::keyboard::Key::Character("v") if key_press.modifiers.logo() => {
-            Some(text_editor::Binding::Custom(Message::Paste))
-        }
-        _ => None,
-    }
+    paste_key_binding(&key_press).or_else(|| {
+        text_editor_key_bindings::platform_kill(
+            &key_press,
+            selection.is_some(),
+            |kill| text_editor::Binding::Custom(Message::Kill(kill, false)),
+        )
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn paste_key_binding(
+    key_press: &text_editor::KeyPress,
+) -> Option<text_editor::Binding<Message>> {
+    (matches!(key_press.key.as_ref(), iced::keyboard::Key::Character("v"))
+        && key_press.modifiers.logo())
+    .then_some(text_editor::Binding::Custom(Message::Paste))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn platform_specific_key_bindings(
-    key_press: text_editor::KeyPress,
-    selection: Option<&str>,
+fn paste_key_binding(
+    key_press: &text_editor::KeyPress,
 ) -> Option<text_editor::Binding<Message>> {
     match key_press.key.as_ref() {
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
-            if key_press.modifiers.control() && selection.is_none() =>
-        {
-            if key_press.modifiers.shift() {
-                Some(text_editor::Binding::Custom(Message::Kill(
-                    text_editor_key_bindings::Kill::ToStart,
-                    false,
-                )))
-            } else {
-                Some(text_editor::Binding::Custom(Message::Kill(
-                    text_editor_key_bindings::Kill::WordBackward,
-                    false,
-                )))
-            }
-        }
-        iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete)
-            if key_press.modifiers.control() =>
-        {
-            if key_press.modifiers.shift() {
-                Some(text_editor::Binding::Custom(Message::Kill(
-                    text_editor_key_bindings::Kill::ToEnd,
-                    false,
-                )))
-            } else {
-                Some(text_editor::Binding::Custom(Message::Kill(
-                    text_editor_key_bindings::Kill::WordForward,
-                    false,
-                )))
-            }
-        }
         iced::keyboard::Key::Named(iced::keyboard::key::Named::Insert)
             if key_press.modifiers.shift() && key_press.text.is_none() =>
         {
             Some(text_editor::Binding::Custom(Message::Paste))
         }
-        // ctrl+v routes to Message::Paste normally, which means we lose our control flow. overwrite it with our own handler
         iced::keyboard::Key::Character("v")
             if key_press.modifiers.control() =>
         {
             Some(text_editor::Binding::Custom(Message::Paste))
         }
-
         _ => None,
     }
 }
@@ -310,7 +253,6 @@ pub fn view<'a>(
                 return Some(binding);
             }
 
-            // Undo / redo
             if let Some(binding) = text_editor_key_bindings::undo_redo(
                 &key_press,
                 Message::Undo,
