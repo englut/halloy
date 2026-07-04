@@ -3308,7 +3308,7 @@ dependencies = [
 [[package]]
 name = "iced_highlighter"
 version = "0.15.0-dev"
-source = "git+https://github.com/squidowl/iced?rev=0233820741bd6d7dab8d3b2f6d0b8929c96f5a68#0233820741bd6d7dab8d3b2f6d0b8929c96f5a68"
+source = "git+https://github.com/squidowl/iced?rev=a3e3b0385a26a270c6335d2e7184bc8400bcd4a3#a3e3b0385a26a270c6335d2e7184bc8400bcd4a3"
 dependencies = [
  "iced_core",
  "two-face",
