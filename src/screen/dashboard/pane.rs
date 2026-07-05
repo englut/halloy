@@ -415,9 +415,18 @@ impl TitleBar {
                 let mark_as_read_button_with_tooltip = tooltip(
                     mark_as_read_button,
                     show_tooltips.then_some(if can_mark_as_read {
-                        "Mark messages as read"
+                        match config.keyboard.mark_as_read.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Mark messages as read ({keybind})")
+                            }
+                            _ => "Mark messages as read".to_string(),
+                        }
                     } else {
-                        "No unread messages"
+                        "No unread messages".to_string()
                     }),
                     tooltip::Position::Bottom,
                     theme,
@@ -446,9 +455,18 @@ impl TitleBar {
                     let scroll_to_bottom_button_with_tooltip = tooltip(
                         scroll_to_bottom_button,
                         show_tooltips.then_some(if can_scroll_to_bottom {
-                            "Scroll to bottom"
+                            match config.keyboard.scroll_to_bottom.primary() {
+                                Some(
+                                    keybind @ data::shortcut::KeyBind::Bind {
+                                        ..
+                                    },
+                                ) => {
+                                    format!("Scroll to bottom ({keybind})")
+                                }
+                                _ => "Scroll to bottom".to_string(),
+                            }
                         } else {
-                            "Already at bottom"
+                            "Already at bottom".to_string()
                         }),
                         tooltip::Position::Bottom,
                         theme,
@@ -506,9 +524,27 @@ impl TitleBar {
                     let topic_button_with_tooltip = tooltip(
                         topic_button,
                         show_tooltips.then_some(if topic_enabled {
-                            "Hide topic banner"
+                            match config.keyboard.toggle_topic.primary() {
+                                Some(
+                                    keybind @ data::shortcut::KeyBind::Bind {
+                                        ..
+                                    },
+                                ) => {
+                                    format!("Hide topic banner ({keybind})")
+                                }
+                                _ => "Hide topic banner".to_string(),
+                            }
                         } else {
-                            "Show topic banner"
+                            match config.keyboard.toggle_topic.primary() {
+                                Some(
+                                    keybind @ data::shortcut::KeyBind::Bind {
+                                        ..
+                                    },
+                                ) => {
+                                    format!("Show topic banner ({keybind})")
+                                }
+                                _ => "Show topic banner".to_string(),
+                            }
                         }),
                         tooltip::Position::Bottom,
                         theme,
@@ -542,9 +578,27 @@ impl TitleBar {
                 let nicklist_button_with_tooltip = tooltip(
                     nicklist_button,
                     show_tooltips.then_some(if nicklist_enabled {
-                        "Hide nicklist"
+                        match config.keyboard.toggle_nick_list.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Hide nicklist ({keybind})")
+                            }
+                            _ => "Hide nicklist".to_string(),
+                        }
                     } else {
-                        "Show nicklist"
+                        match config.keyboard.toggle_nick_list.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Show nicklist ({keybind})")
+                            }
+                            _ => "Show nicklist".to_string(),
+                        }
                     }),
                     tooltip::Position::Bottom,
                     theme,
@@ -570,9 +624,27 @@ impl TitleBar {
                 let maximize_button_with_tooltip = tooltip(
                     maximize_button,
                     show_tooltips.then_some(if maximized {
-                        "Restore"
+                        match config.keyboard.restore_buffer.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Restore ({keybind})")
+                            }
+                            _ => "Restore".to_string(),
+                        }
                     } else {
-                        "Maximize"
+                        match config.keyboard.maximize_buffer.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Maximize ({keybind})")
+                            }
+                            _ => "Maximize".to_string(),
+                        }
                     }),
                     tooltip::Position::Bottom,
                     theme,
@@ -630,7 +702,18 @@ impl TitleBar {
 
                 let close_button_with_tooltip = tooltip(
                     close_button,
-                    show_tooltips.then_some("Close"),
+                    show_tooltips.then_some(
+                        match config.keyboard.close_buffer.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Close ({keybind})")
+                            }
+                            _ => "Close".to_string(),
+                        },
+                    ),
                     tooltip::Position::Bottom,
                     theme,
                 );
