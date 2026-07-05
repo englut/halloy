@@ -1166,14 +1166,16 @@ impl Dashboard {
                         );
                     }
                     FileTransfers => {
-                        return (
-                            self.toggle_internal_buffer(
-                                clients,
-                                config,
-                                buffer::Internal::FileTransfers,
-                            ),
-                            None,
-                        );
+                        if config.file_transfer.enabled {
+                            return (
+                                self.toggle_internal_buffer(
+                                    clients,
+                                    config,
+                                    buffer::Internal::FileTransfers,
+                                ),
+                                None,
+                            );
+                        }
                     }
                     Logs => {
                         return (
