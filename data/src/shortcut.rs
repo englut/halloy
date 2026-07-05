@@ -206,7 +206,13 @@ impl fmt::Display for KeyBind {
             KeyBind::Bind {
                 key_code,
                 modifiers,
-            } => write!(f, "{modifiers} {key_code}"),
+            } => {
+                if modifiers.is_empty() {
+                    write!(f, "{key_code}")
+                } else {
+                    write!(f, "{modifiers} {key_code}")
+                }
+            }
             KeyBind::Unbind => write!(f, ""),
         }
     }
@@ -218,11 +224,15 @@ impl KeyBind {
             KeyBind::Bind {
                 key_code,
                 modifiers,
-            } => format!(
-                "{}+{}",
-                modifiers.as_config_string(),
-                key_code.to_string().to_lowercase()
-            ),
+            } => {
+                let key_code = key_code.to_string().to_lowercase();
+
+                if modifiers.is_empty() {
+                    key_code
+                } else {
+                    format!("{}+{}", modifiers.as_config_string(), key_code)
+                }
+            }
             KeyBind::Unbind => String::new(),
         }
     }
@@ -513,6 +523,10 @@ impl Modifiers {
         }
 
         mods.join("+")
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
