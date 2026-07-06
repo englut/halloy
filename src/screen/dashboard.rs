@@ -3247,20 +3247,6 @@ impl Dashboard {
         }
     }
 
-    fn open_or_focus_buffer(
-        &mut self,
-        buffer: data::Buffer,
-        buffer_action: BufferAction,
-        clients: &mut data::client::Map,
-        config: &Config,
-    ) -> Task<Message> {
-        if let Some((window, pane, _)) = self.panes.get_by_buffer(&buffer) {
-            self.focus_pane(window, pane)
-        } else {
-            self.open_buffer(buffer, buffer_action, clients, config)
-        }
-    }
-
     pub fn leave_all_queries(
         &mut self,
         clients: &mut data::client::Map,
@@ -4711,37 +4697,40 @@ impl Dashboard {
     ) -> Task<Message> {
         match event {
             notification::Event::NotificationResponse { action, buffer } => {
+                // When an notification action is performed in Wayland the
+                // application is not automatically brought forward.  Since
+                // there is currently no interface to ensure the application is
+                // activated with non-dismissal notification interactions,
+                // request attention in order to do so (should be a noop in
+                // other environments).
+
+                let window_id = if let Some(buffer) = &buffer
+                    && let Some((window, _, _)) =
+                        self.panes.get_by_buffer(buffer)
+                {
+                    window
+                } else {
+                    self.focus.window
+                };
+
+                let activate_application = iced::window::request_user_attention(
+                    window_id,
+                    Some(iced::window::UserAttention::Informational),
+                );
+
                 match action {
                     toast::Action::Dismiss => Task::none(),
-                    toast::Action::OpenOrFocusBuffer => {
+                    toast::Action::ActivateApplication => activate_application,
+                    toast::Action::OpenBuffer => {
                         if let Some(buffer) = buffer {
-                            // When an notification action is performed in Wayland
-                            // the application is not automatically brought forward.
-                            // Request attention in order to do so.
-                            let window_id = if let Some((window, _, _)) =
-                                self.panes.get_by_buffer(&buffer)
-                            {
-                                window
-                            } else {
-                                self.focus.window
-                            };
-
-                            iced::window::request_user_attention(
-                                window_id,
-                                Some(
-                                    iced::window::UserAttention::Informational,
-                                ),
-                            )
-                            .chain(
-                                self.open_or_focus_buffer(
-                                    buffer,
-                                    config.actions.notification.open_buffer,
-                                    clients,
-                                    config,
-                                ),
-                            )
+                            activate_application.chain(self.open_buffer(
+                                buffer,
+                                config.actions.notification.open_buffer,
+                                clients,
+                                config,
+                            ))
                         } else {
-                            Task::none()
+                            activate_application
                         }
                     }
                 }

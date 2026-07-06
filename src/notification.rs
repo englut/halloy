@@ -532,7 +532,7 @@ impl Notifications {
     fn execute(
         &mut self,
         config: &notification::Notification,
-        notification_action: NotificationAction,
+        default_notification_action: NotificationAction,
         notification: &Notification,
         title: &str,
         subtitle: Option<&str>,
@@ -562,13 +562,16 @@ impl Notifications {
                 subtitle,
                 body,
                 buffer.is_some(),
-                notification_action,
+                default_notification_action,
             );
 
             let sender = self.sender.clone();
 
             tokio::task::spawn(async move {
-                if let Some(action) = toast.show_and_wait_for_response().await {
+                if let Some(action) = toast
+                    .show_and_wait_for_response(default_notification_action)
+                    .await
+                {
                     let _ = sender
                         .send(Event::NotificationResponse { action, buffer })
                         .await;
