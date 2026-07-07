@@ -4,12 +4,14 @@ use data::config::buffer::nickname::ShownStatus;
 use data::dashboard::BufferAction;
 use data::target::{self, Target};
 use data::{
-    Config, Image, Preview, Server, history, message, metadata, preview,
+    Config, Image, Preview, Server, User, history, message, metadata, preview,
 };
 use iced::widget::{container, row, span};
 use iced::{Color, Length, Size, Task};
 
-use super::context_menu::{self, Context};
+use super::context_menu::{
+    self, ChannelContext, Context, UrlContext, UserContext,
+};
 use super::scroll_view;
 use crate::widget::user_display::UserDisplay;
 use crate::widget::{
@@ -41,6 +43,8 @@ pub fn view<'a>(
     previews: &'a preview::Collection,
     config: &'a Config,
     theme: &'a Theme,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let messages = container(
         scroll_view::view(
@@ -79,35 +83,76 @@ pub fn view<'a>(
                             .map(scroll_view::Message::ContextMenu)
                         });
 
-                    let channel_text =
-                        selectable_rich_text::<_, _, (), _, _>(vec![
-                            span(channel.as_str())
-                                .font_maybe(
-                                    theme
-                                        .styles()
-                                        .buffer
-                                        .url
-                                        .font_style
-                                        .map(font::get),
+                    let channel_text = selectable_rich_text::<
+                        _,
+                        message::Link,
+                        context_menu::Entry,
+                        _,
+                        _,
+                    >(vec![
+                        span(channel.as_str())
+                            .font_maybe(
+                                theme
+                                    .styles()
+                                    .buffer
+                                    .url
+                                    .font_style
+                                    .map(font::get),
+                            )
+                            .color(theme.styles().buffer.url.color)
+                            .link_maybe(
+                                match config.actions.buffer.click_highlight {
+                                    ChannelClickAction::OpenChannel(
+                                        buffer_action,
+                                    ) => Some(message::Link::GoToMessage(
+                                        server.clone(),
+                                        channel.clone(),
+                                        message.hash,
+                                        buffer_action,
+                                    )),
+                                    ChannelClickAction::Noop => None,
+                                },
+                            ),
+                        span(" "),
+                    ])
+                    .on_link(scroll_view::Message::Link)
+                    .context_menu(
+                        move |link| match link {
+                            message::Link::GoToMessage(
+                                server,
+                                channel,
+                                _,
+                                _,
+                            ) => context_menu::Entry::channel_list(
+                                channel_is_open(server, channel),
+                                channel_is_focused(server, channel),
+                            ),
+                            _ => vec![],
+                        },
+                        move |link, entry, length| {
+                            entry
+                                .view(
+                                    Context::link(
+                                        link,
+                                        Option::<fn(&User) -> UserContext>::None,
+                                        Option::<fn(&str) -> UrlContext>::None,
+                                        Some(|server, channel| {
+                                            ChannelContext {
+                                                server,
+                                                channel,
+                                                is_open: channel_is_open(
+                                                    server, channel,
+                                                ),
+                                            }
+                                        }),
+                                    ),
+                                    length,
+                                    config,
+                                    theme,
                                 )
-                                .color(theme.styles().buffer.url.color)
-                                .link_maybe(
-                                    match config.actions.buffer.click_highlight
-                                    {
-                                        ChannelClickAction::OpenChannel(
-                                            buffer_action,
-                                        ) => Some(message::Link::GoToMessage(
-                                            server.clone(),
-                                            channel.clone(),
-                                            message.hash,
-                                            buffer_action,
-                                        )),
-                                        ChannelClickAction::Noop => None,
-                                    },
-                                ),
-                            span(" "),
-                        ])
-                        .on_link(scroll_view::Message::Link);
+                                .map(scroll_view::Message::ContextMenu)
+                        },
+                    );
 
                     let current_user =
                         users.and_then(|users| users.resolve(user));
@@ -205,11 +250,18 @@ pub fn view<'a>(
                                     false, None, None, false, false, false,
                                 )
                             }
+                            message::Link::Channel(server, channel, _) => {
+                                context_menu::Entry::channel_list(
+                                    channel_is_open(server, channel),
+                                    channel_is_focused(server, channel),
+                                )
+                            }
                             _ => vec![],
                         },
                         move |link, entry, length| {
-                            let context = if let Some(user) = link.user() {
-                                Some(Context::User {
+                            let context = Context::link(
+                                link,
+                                Some(|user| UserContext {
                                     server,
                                     prefix,
                                     channel: Some(channel),
@@ -221,14 +273,18 @@ pub fn view<'a>(
                                     ),
                                     user,
                                     current_user,
-                                })
-                            } else {
-                                link.url().map(|url| Context::Url {
+                                }),
+                                Some(|url| UrlContext {
                                     url,
                                     message: None,
                                     selected_reactions: vec![],
-                                })
-                            };
+                                }),
+                                Some(|server, channel| ChannelContext {
+                                    server,
+                                    channel,
+                                    is_open: channel_is_open(server, channel),
+                                }),
+                            );
 
                             entry
                                 .view(context, length, config, theme)
@@ -324,6 +380,8 @@ pub fn view<'a>(
                 _ => None,
             },
             metadata::EMPTY,
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::ScrollView),
     )

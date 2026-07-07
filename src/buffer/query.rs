@@ -62,6 +62,8 @@ pub fn view<'a>(
     config: &'a Config,
     theme: &'a Theme,
     is_focused: bool,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let server = &state.server;
     let connected = matches!(clients.status(server), client::Status::Connected);
@@ -133,6 +135,8 @@ pub fn view<'a>(
             theme,
             message_formatter,
             clients.get_registry(server),
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::ScrollView),
     )

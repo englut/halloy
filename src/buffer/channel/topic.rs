@@ -5,7 +5,9 @@ use data::{Config, Server, User, isupport, message, target};
 use iced::widget::{Scrollable, column, container, row, rule, scrollable};
 use iced::{Color, Length, padding};
 
-use super::context_menu::{self, Context};
+use super::context_menu::{
+    self, ChannelContext, Context, UrlContext, UserContext,
+};
 use crate::widget::user_display::UserDisplay;
 use crate::widget::{Element, double_pass, message_content, selectable_text};
 use crate::{Theme, font, theme};
@@ -61,6 +63,8 @@ pub fn view<'a>(
     theme: &'a Theme,
     registry: &'a dyn data::metadata::Registry,
     previews: &'a data::preview::Collection,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let set_by = who.and_then(|user| {
         let user_in_channel = users.and_then(|users| users.resolve(user));
@@ -143,34 +147,47 @@ pub fn view<'a>(
                 message::Link::Url(_) => context_menu::Entry::url_list(
                     false, None, None, false, false, false
                 ),
+                message::Link::Channel(server, channel, _) => {
+                    context_menu::Entry::channel_list(
+                        channel_is_open(server, channel),
+                        channel_is_focused(server, channel),
+                    )
+                }
                 _ => vec![],
             },
             move |link, entry, length| {
-                let link_context = if let Some(user) = link.user() {
-                    let current_user =
-                        users.and_then(|users| users.resolve(user));
+                let context = Context::link(
+                    link,
+                    Some(|user| {
+                        let current_user =
+                            users.and_then(|users| users.resolve(user));
 
-                    Some(Context::User {
-                        server,
-                        prefix,
-                        channel: Some(channel),
-                        registry,
-                        avatar: context_menu::user_avatar(
-                            user, registry, previews,
-                        ),
-                        user,
-                        current_user,
-                    })
-                } else {
-                    link.url().map(|url| Context::Url {
+                        UserContext {
+                            server,
+                            prefix,
+                            channel: Some(channel),
+                            registry,
+                            avatar: context_menu::user_avatar(
+                                user, registry, previews,
+                            ),
+                            user,
+                            current_user,
+                        }
+                    }),
+                    Some(|url| UrlContext {
                         url,
                         message: None,
                         selected_reactions: vec![],
-                    })
-                };
+                    }),
+                    Some(|server, channel| ChannelContext {
+                        server,
+                        channel,
+                        is_open: channel_is_open(server, channel),
+                    }),
+                );
 
                 entry
-                    .view(link_context, length, config, theme)
+                    .view(context, length, config, theme)
                     .map(Message::ContextMenu)
             },
             None,

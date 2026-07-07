@@ -4,6 +4,7 @@ use std::string::ToString;
 use chrono::{DateTime, Utc};
 use data::config::actions::NicknameClickAction;
 use data::dashboard::BufferAction;
+use data::target::Target;
 use data::user::Nick;
 use data::{
     Config, Server, User, ctcp, isupport, message, metadata, preview, target,
@@ -22,27 +23,67 @@ use crate::{Theme, font, icon, theme, widget};
 
 const AVATAR_SIZE: u16 = 36;
 
+pub struct UserContext<'a> {
+    pub server: &'a Server,
+    pub prefix: &'a [isupport::PrefixMap],
+    pub channel: Option<&'a target::Channel>,
+    pub registry: &'a dyn metadata::Registry,
+    pub avatar: Option<UserAvatar<'a>>,
+    pub user: &'a User,
+    pub current_user: Option<&'a User>,
+}
+
+pub struct UrlContext<'a> {
+    pub url: &'a str,
+    pub message: Option<&'a message::Message>,
+    pub selected_reactions: Vec<&'a str>,
+}
+
+pub struct ChannelContext<'a> {
+    pub server: &'a Server,
+    pub channel: &'a target::Channel,
+    pub is_open: bool,
+}
+
 pub enum Context<'a> {
-    User {
-        server: &'a Server,
-        prefix: &'a [isupport::PrefixMap],
-        channel: Option<&'a target::Channel>,
-        registry: &'a dyn metadata::Registry,
-        avatar: Option<UserAvatar<'a>>,
-        user: &'a User,
-        current_user: Option<&'a User>,
-    },
-    Url {
-        url: &'a str,
-        message: Option<&'a message::Message>,
-        selected_reactions: Vec<&'a str>,
-    },
+    User(UserContext<'a>),
+    Url(UrlContext<'a>),
+    Channel(ChannelContext<'a>),
     Timestamp(&'a DateTime<Utc>),
     NotSentMessage(&'a DateTime<Utc>, &'a message::Hash),
     Message {
         message: &'a message::Message,
         selected_reactions: &'a [String],
     },
+}
+
+impl<'a> Context<'a> {
+    pub fn link(
+        link: &'a message::Link,
+        into_user_context: Option<impl Fn(&'a User) -> UserContext<'a>>,
+        into_url_context: Option<impl Fn(&'a str) -> UrlContext<'a>>,
+        into_channel_context: Option<
+            impl Fn(&'a Server, &'a target::Channel) -> ChannelContext<'a>,
+        >,
+    ) -> Option<Context<'a>> {
+        match link {
+            message::Link::User(_, user) => {
+                into_user_context.map(|into_user_context| {
+                    Context::User(into_user_context(user))
+                })
+            }
+            message::Link::Url(url) => into_url_context
+                .map(|into_url_context| Context::Url(into_url_context(url))),
+            message::Link::Channel(server, channel, _)
+            | message::Link::GoToMessage(server, channel, _, _) => {
+                into_channel_context.map(|into_channel_context| {
+                    Context::Channel(into_channel_context(server, channel))
+                })
+            }
+            message::Link::ExpandMessage(..)
+            | message::Link::ContractMessage(..) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -64,6 +105,11 @@ pub enum Entry {
     OpenUrl,
     HidePreview,
     ShowPreview,
+    // channel context
+    CopyChannel,
+    OpenChannelInNewPane,
+    OpenChannelInNewWindow,
+    OpenChannelInFocusedPane,
     // timestamp context
     Timestamp,
     // not sent message context
@@ -136,6 +182,21 @@ impl Entry {
 
         if can_redact {
             entries.push(Entry::Redact);
+        }
+
+        entries
+    }
+
+    pub fn channel_list(is_open: bool, is_focused: bool) -> Vec<Self> {
+        let mut entries = vec![Entry::CopyChannel];
+
+        if !is_open {
+            entries.push(Entry::OpenChannelInNewPane);
+            entries.push(Entry::OpenChannelInNewWindow);
+        }
+
+        if !is_focused {
+            entries.push(Entry::OpenChannelInFocusedPane);
         }
 
         entries
@@ -281,7 +342,7 @@ impl Entry {
         theme: &'a Theme,
     ) -> Element<'a, Message> {
         context.map_or(row![].into(), |context| match (self, context) {
-            (Entry::Whois, Context::User { server, user, .. }) => {
+            (Entry::Whois, Context::User(UserContext { server, user, .. })) => {
                 let message =
                     Message::Whois(server.clone(), user.nickname().to_owned());
 
@@ -293,7 +354,10 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::Whowas, Context::User { server, user, .. }) => {
+            (
+                Entry::Whowas,
+                Context::User(UserContext { server, user, .. }),
+            ) => {
                 let message =
                     Message::Whowas(server.clone(), user.nickname().to_owned());
 
@@ -305,10 +369,10 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::Query, Context::User { server, user, .. }) => {
-                let message = Message::Query(
+            (Entry::Query, Context::User(UserContext { server, user, .. })) => {
+                let message = Message::OpenTarget(
                     server.clone(),
-                    target::Query::from(user.clone()),
+                    target::Query::from(user.clone()).to_target(),
                     config.actions.buffer.message_user,
                 );
 
@@ -322,13 +386,13 @@ impl Entry {
             }
             (
                 Entry::ToggleAccessLevelOp,
-                Context::User {
+                Context::User(UserContext {
                     server,
                     prefix,
                     channel,
                     user,
                     ..
-                },
+                }),
             ) => {
                 let operator_mode = prefix.iter().find_map(|prefix_map| {
                     (prefix_map.prefix == '@').then_some(prefix_map.mode)
@@ -363,13 +427,13 @@ impl Entry {
             }
             (
                 Entry::ToggleAccessLevelVoice,
-                Context::User {
+                Context::User(UserContext {
                     server,
                     prefix,
                     channel,
                     user,
                     ..
-                },
+                }),
             ) => {
                 let voice_mode = prefix.iter().find_map(|prefix_map| {
                     (prefix_map.prefix == '+').then_some(prefix_map.mode)
@@ -402,7 +466,10 @@ impl Entry {
 
                 menu_button(label, message, length, theme, config)
             }
-            (Entry::SendFile, Context::User { server, user, .. }) => {
+            (
+                Entry::SendFile,
+                Context::User(UserContext { server, user, .. }),
+            ) => {
                 let message = Message::SendFile(server.clone(), user.clone());
 
                 menu_button(
@@ -415,9 +482,9 @@ impl Entry {
             }
             (
                 Entry::UserInfo,
-                Context::User {
+                Context::User(UserContext {
                     user, current_user, ..
-                },
+                }),
             ) => user_info(
                 current_user,
                 user.nickname().to_owned(),
@@ -427,12 +494,12 @@ impl Entry {
             ),
             (
                 Entry::UserMetadata,
-                Context::User {
+                Context::User(UserContext {
                     user,
                     registry,
                     avatar,
                     ..
-                },
+                }),
             ) => user_metadata(
                 user,
                 registry,
@@ -447,7 +514,10 @@ impl Entry {
                 }
                 _ => Space::new().width(length).height(1).into(),
             },
-            (Entry::CtcpRequestTime, Context::User { server, user, .. }) => {
+            (
+                Entry::CtcpRequestTime,
+                Context::User(UserContext { server, user, .. }),
+            ) => {
                 let message = Message::CtcpRequest(
                     ctcp::Command::Time,
                     server.clone(),
@@ -463,7 +533,10 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::CtcpRequestVersion, Context::User { server, user, .. }) => {
+            (
+                Entry::CtcpRequestVersion,
+                Context::User(UserContext { server, user, .. }),
+            ) => {
                 let message = Message::CtcpRequest(
                     ctcp::Command::Version,
                     server.clone(),
@@ -479,8 +552,8 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::CopyUrl, Context::Url { url, .. }) => {
-                let message = Message::CopyUrl(url.to_string());
+            (Entry::CopyUrl, Context::Url(UrlContext { url, .. })) => {
+                let message = Message::CopyText(url.to_string());
 
                 menu_button(
                     "Copy URL".to_string(),
@@ -490,7 +563,7 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::OpenUrl, Context::Url { url, .. }) => {
+            (Entry::OpenUrl, Context::Url(UrlContext { url, .. })) => {
                 let message = Message::OpenUrl(url.to_string());
 
                 menu_button(
@@ -501,7 +574,10 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::HidePreview, Context::Url { url, message, .. }) => {
+            (
+                Entry::HidePreview,
+                Context::Url(UrlContext { url, message, .. }),
+            ) => {
                 let message = message.map(|message| {
                     Message::HidePreview(message.hash, url.to_string())
                 });
@@ -514,7 +590,10 @@ impl Entry {
                     config,
                 )
             }
-            (Entry::ShowPreview, Context::Url { url, message, .. }) => {
+            (
+                Entry::ShowPreview,
+                Context::Url(UrlContext { url, message, .. }),
+            ) => {
                 let message = message.map(|message| {
                     Message::ShowPreview(message.hash, url.to_string())
                 });
@@ -526,6 +605,82 @@ impl Entry {
                     theme,
                     config,
                 )
+            }
+            (
+                Entry::CopyChannel,
+                Context::Channel(ChannelContext { channel, .. }),
+            ) => {
+                let message = Message::CopyText(channel.to_string());
+
+                menu_button(
+                    "Copy channel".to_string(),
+                    Some(message),
+                    length,
+                    theme,
+                    config,
+                )
+            }
+            (
+                Entry::OpenChannelInNewPane,
+                Context::Channel(ChannelContext {
+                    server, channel, ..
+                }),
+            ) => {
+                let message = Message::OpenTarget(
+                    server.clone(),
+                    channel.to_target(),
+                    BufferAction::NewPane,
+                );
+
+                menu_button(
+                    "Open channel in new pane".to_string(),
+                    Some(message),
+                    length,
+                    theme,
+                    config,
+                )
+            }
+            (
+                Entry::OpenChannelInNewWindow,
+                Context::Channel(ChannelContext {
+                    server, channel, ..
+                }),
+            ) => {
+                let message = Message::OpenTarget(
+                    server.clone(),
+                    channel.to_target(),
+                    BufferAction::NewWindow,
+                );
+
+                menu_button(
+                    "Open channel in new window".to_string(),
+                    Some(message),
+                    length,
+                    theme,
+                    config,
+                )
+            }
+            (
+                Entry::OpenChannelInFocusedPane,
+                Context::Channel(ChannelContext {
+                    server,
+                    channel,
+                    is_open,
+                }),
+            ) => {
+                let message = Message::OpenTarget(
+                    server.clone(),
+                    channel.to_target(),
+                    BufferAction::ReplacePane,
+                );
+
+                let text = if is_open {
+                    "Swap channel pane with current pane".to_string()
+                } else {
+                    "Replace current pane with channel".to_string()
+                };
+
+                menu_button(text, Some(message), length, theme, config)
             }
             (Entry::Timestamp, Context::Timestamp(date_time)) => {
                 let context_menu_timestamp =
@@ -581,10 +736,10 @@ impl Entry {
             (
                 Entry::CopyRedaction,
                 Context::Message { message, .. }
-                | Context::Url {
+                | Context::Url(UrlContext {
                     message: Some(message),
                     ..
-                },
+                }),
             ) => {
                 if let Some(redaction) = message.redaction.as_ref() {
                     menu_button(
@@ -601,10 +756,10 @@ impl Entry {
             (
                 Entry::Reply,
                 Context::Message { message, .. }
-                | Context::Url {
+                | Context::Url(UrlContext {
                     message: Some(message),
                     ..
-                },
+                }),
             ) => {
                 if let Some(msgid) = message.id.as_ref()
                     && let Some(user) = message.target.source().user()
@@ -649,11 +804,11 @@ impl Entry {
             }
             (
                 Entry::AddReaction,
-                Context::Url {
+                Context::Url(UrlContext {
                     message: Some(message),
                     selected_reactions,
                     ..
-                },
+                }),
             ) => {
                 if let Some(msgid) = message.id.as_ref() {
                     menu_button(
@@ -676,10 +831,10 @@ impl Entry {
             (
                 Entry::Redact,
                 Context::Message { message, .. }
-                | Context::Url {
+                | Context::Url(UrlContext {
                     message: Some(message),
                     ..
-                },
+                }),
             ) => {
                 if let Some(msgid) = message.id.as_ref() {
                     menu_button(
@@ -696,10 +851,10 @@ impl Entry {
             (
                 Entry::HideWithRedaction,
                 Context::Message { message, .. }
-                | Context::Url {
+                | Context::Url(UrlContext {
                     message: Some(message),
                     ..
-                },
+                }),
             ) => menu_button(
                 "Hide with redaction".to_string(),
                 Some(Message::ContractMessage(
@@ -713,10 +868,10 @@ impl Entry {
             (
                 Entry::ShowRedactedMessage,
                 Context::Message { message, .. }
-                | Context::Url {
+                | Context::Url(UrlContext {
                     message: Some(message),
                     ..
-                },
+                }),
             ) => menu_button(
                 "Show redacted message".to_string(),
                 Some(Message::ExpandMessage(message.server_time, message.hash)),
@@ -733,12 +888,11 @@ impl Entry {
 pub enum Message {
     Whois(Server, Nick),
     Whowas(Server, Nick),
-    Query(Server, target::Query, BufferAction),
+    OpenTarget(Server, Target, BufferAction),
     ToggleAccessLevel(Server, target::Channel, Nick, String),
     SendFile(Server, User),
     InsertNickname(Nick),
     CtcpRequest(ctcp::Command, Server, Nick, Option<String>),
-    CopyUrl(String),
     CopyText(String),
     OpenUrl(String),
     HidePreview(message::Hash, String),
@@ -767,12 +921,11 @@ pub enum Message {
 pub enum Event {
     SendWhois(Server, Nick),
     SendWhowas(Server, Nick),
-    OpenQuery(Server, target::Query, BufferAction),
+    OpenTarget(Server, Target, BufferAction),
     ToggleAccessLevel(Server, target::Channel, Nick, String),
     SendFile(Server, User),
     InsertNickname(Nick),
     CtcpRequest(ctcp::Command, Server, Nick, Option<String>),
-    CopyUrl(String),
     CopyText(String),
     OpenUrl(String),
     HidePreview(message::Hash, String),
@@ -796,8 +949,8 @@ pub fn update(message: Message) -> Option<Event> {
     match message {
         Message::Whois(server, nick) => Some(Event::SendWhois(server, nick)),
         Message::Whowas(server, nick) => Some(Event::SendWhowas(server, nick)),
-        Message::Query(server, nick, buffer_action) => {
-            Some(Event::OpenQuery(server, nick, buffer_action))
+        Message::OpenTarget(server, target, buffer_action) => {
+            Some(Event::OpenTarget(server, target, buffer_action))
         }
         Message::ToggleAccessLevel(server, target, nick, mode) => {
             Some(Event::ToggleAccessLevel(server, target, nick, mode))
@@ -807,7 +960,6 @@ pub fn update(message: Message) -> Option<Event> {
         Message::CtcpRequest(command, server, nick, params) => {
             Some(Event::CtcpRequest(command, server, nick, params))
         }
-        Message::CopyUrl(url) => Some(Event::CopyUrl(url)),
         Message::CopyText(text) => Some(Event::CopyText(text)),
         Message::OpenUrl(url) => Some(Event::OpenUrl(url)),
         Message::HidePreview(message, url) => {
@@ -936,11 +1088,11 @@ where
         move |entry, length| {
             entry
                 .view(
-                    Some(Context::Url {
+                    Some(Context::Url(UrlContext {
                         url,
                         message: Some(message),
                         selected_reactions: selected_reactions.clone(),
-                    }),
+                    })),
                     length,
                     config,
                     theme,
@@ -1031,11 +1183,13 @@ fn user_with_entries<'a>(
     entries: Vec<Entry>,
 ) -> Element<'a, Message> {
     let message = match click {
-        NicknameClickAction::OpenQuery(buffer_action) => Some(Message::Query(
-            server.clone(),
-            target::Query::from(user),
-            *buffer_action,
-        )),
+        NicknameClickAction::OpenQuery(buffer_action) => {
+            Some(Message::OpenTarget(
+                server.clone(),
+                target::Query::from(user).to_target(),
+                *buffer_action,
+            ))
+        }
         NicknameClickAction::InsertNickname => {
             Some(Message::InsertNickname(user.nickname().to_owned()))
         }
@@ -1069,7 +1223,7 @@ fn user_with_entries<'a>(
         entries,
         move |entry, length| {
             entry.view(
-                Some(Context::User {
+                Some(Context::User(UserContext {
                     server,
                     prefix,
                     channel,
@@ -1077,7 +1231,7 @@ fn user_with_entries<'a>(
                     avatar: avatar.clone(),
                     user,
                     current_user,
-                }),
+                })),
                 length,
                 config,
                 theme,

@@ -19,7 +19,9 @@ use iced::widget::{
 };
 use iced::{Color, ContentFit, Length, alignment, padding};
 
-use crate::buffer::context_menu::{self, Context};
+use crate::buffer::context_menu::{
+    self, ChannelContext, Context, UrlContext, UserContext,
+};
 use crate::buffer::scroll_view::keyed::{self, keyed};
 use crate::buffer::scroll_view::{LayoutMessage, Message};
 use crate::widget::preview::preview_card_parts;
@@ -550,6 +552,8 @@ impl<'a> ChannelQueryLayout<'a> {
         user: &'a User,
         hide_nickname: bool,
         nick_prefix_to_strip: Option<&str>,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> (
         Option<Element<'a, Message>>,
         Element<'a, Message>,
@@ -751,12 +755,22 @@ impl<'a> ChannelQueryLayout<'a> {
                                 message::Link::Url(_) => {
                                     formatter.url_entries(message, link)
                                 }
+                                message::Link::Channel(server, channel, _) => {
+                                    context_menu::Entry::channel_list(
+                                        channel_is_open(server, channel),
+                                        channel_is_focused(server, channel),
+                                    )
+                                }
                                 _ => vec![],
                             },
                             move |link, entry, length| {
                                 entry
                                     .view(
-                                        formatter.link_context(message, link),
+                                        formatter.link_context(
+                                            message,
+                                            link,
+                                            channel_is_open,
+                                        ),
                                         length,
                                         formatter.config,
                                         formatter.theme,
@@ -786,6 +800,8 @@ impl<'a> ChannelQueryLayout<'a> {
         hidden_fragments: &[usize],
         right_alignment_middle_width: Option<f32>,
         server: Option<&'a message::source::Server>,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> (
         Option<Element<'a, Message>>,
         Element<'a, Message>,
@@ -876,12 +892,18 @@ impl<'a> ChannelQueryLayout<'a> {
                     )
                 }
                 message::Link::Url(_) => formatter.url_entries(message, link),
+                message::Link::Channel(server, channel, _) => {
+                    context_menu::Entry::channel_list(
+                        channel_is_open(server, channel),
+                        channel_is_focused(server, channel),
+                    )
+                }
                 _ => vec![],
             },
             move |link, entry, length| {
                 entry
                     .view(
-                        formatter.link_context(message, link),
+                        formatter.link_context(message, link, channel_is_open),
                         length,
                         formatter.config,
                         formatter.theme,
@@ -904,6 +926,8 @@ impl<'a> ChannelQueryLayout<'a> {
         message: &'a data::Message,
         right_alignment_middle_width: Option<f32>,
         hide_timestamp: bool,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> (
         Option<Element<'a, Message>>,
         Element<'a, Message>,
@@ -1026,12 +1050,18 @@ impl<'a> ChannelQueryLayout<'a> {
                     )
                 }
                 message::Link::Url(_) => formatter.url_entries(message, link),
+                message::Link::Channel(server, channel, _) => {
+                    context_menu::Entry::channel_list(
+                        channel_is_open(server, channel),
+                        channel_is_focused(server, channel),
+                    )
+                }
                 _ => vec![],
             },
             move |link, entry, length| {
                 entry
                     .view(
-                        formatter.link_context(message, link),
+                        formatter.link_context(message, link, channel_is_open),
                         length,
                         formatter.config,
                         formatter.theme,
@@ -1061,34 +1091,44 @@ impl<'a> ChannelQueryLayout<'a> {
         &'b self,
         message: &'b data::Message,
         link: &'b message::Link,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'b,
     ) -> Option<Context<'b>> {
-        if let Some(user) = link.user() {
-            let current_user =
-                self.target.users().and_then(|users| users.resolve(user));
+        Context::link(
+            link,
+            Some(|user| {
+                let current_user =
+                    self.target.users().and_then(|users| users.resolve(user));
 
-            Some(Context::User {
-                server: self.server,
-                prefix: self.prefix,
-                channel: self.target.channel(),
-                registry: self.registry,
-                avatar: context_menu::user_avatar(
+                UserContext {
+                    server: self.server,
+                    prefix: self.prefix,
+                    channel: self.target.channel(),
+                    registry: self.registry,
+                    avatar: context_menu::user_avatar(
+                        user,
+                        self.registry,
+                        self.previews.collection(),
+                    ),
                     user,
-                    self.registry,
-                    self.previews.collection(),
-                ),
-                user,
-                current_user,
-            })
-        } else {
-            let selected_reaction_texts =
-                selected_reactions_refs(message, self.our_nick);
+                    current_user,
+                }
+            }),
+            Some(|url| {
+                let selected_reaction_texts =
+                    selected_reactions_refs(message, self.our_nick);
 
-            link.url().map(move |url| Context::Url {
-                url,
-                message: Some(message),
-                selected_reactions: selected_reaction_texts,
-            })
-        }
+                UrlContext {
+                    url,
+                    message: Some(message),
+                    selected_reactions: selected_reaction_texts,
+                }
+            }),
+            Some(|server, channel| ChannelContext {
+                server,
+                channel,
+                is_open: channel_is_open(server, channel),
+            }),
+        )
     }
 }
 
@@ -1111,6 +1151,8 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
         visible_url_messages: &HashMap<message::Hash, Vec<url::Url>>,
         hovered_preview: Option<(message::Hash, usize)>,
         hovered_reply: Option<message::Hash>,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> Option<Element<'a, Message>> {
         let mut prefixes: Option<Element<_>> = self.format_prefixes(message);
 
@@ -1229,6 +1271,8 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                 user,
                 hide_nickname,
                 reply_nick_to_strip,
+                channel_is_focused,
+                channel_is_open,
             )),
             message::Source::Server(server_message) => {
                 Some(self.format_server_message(
@@ -1236,6 +1280,8 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                     &hidden_fragments,
                     right_alignment_middle_width,
                     server_message.as_ref(),
+                    channel_is_focused,
+                    channel_is_open,
                 ))
             }
             message::Source::Action(_) => {
@@ -1309,12 +1355,22 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                         message::Link::Url(_) => {
                             formatter.url_entries(message, link)
                         }
+                        message::Link::Channel(server, channel, _) => {
+                            context_menu::Entry::channel_list(
+                                channel_is_open(server, channel),
+                                channel_is_focused(server, channel),
+                            )
+                        }
                         _ => vec![],
                     },
                     move |link, entry, length| {
                         entry
                             .view(
-                                formatter.link_context(message, link),
+                                formatter.link_context(
+                                    message,
+                                    link,
+                                    channel_is_open,
+                                ),
                                 length,
                                 formatter.config,
                                 formatter.theme,
@@ -1377,6 +1433,8 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                     message,
                     right_alignment_middle_width,
                     hide_timestamp,
+                    channel_is_focused,
+                    channel_is_open,
                 ),
             ),
         }?;

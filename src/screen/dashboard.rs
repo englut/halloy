@@ -1673,6 +1673,12 @@ impl Dashboard {
                         theme,
                         settings,
                         window != self.main_window(),
+                        |server: &Server, channel: &target::Channel| -> bool {
+                            self.has_focused_pane_channel(server, channel)
+                        },
+                        |server: &Server, channel: &target::Channel| -> bool {
+                            self.has_open_pane_channel(server, channel)
+                        },
                     )
                 })
                 .spacing(config.pane.gap.inner)
@@ -1733,6 +1739,12 @@ impl Dashboard {
                     theme,
                     settings,
                     false,
+                    |server: &Server, channel: &target::Channel| -> bool {
+                        self.has_focused_pane_channel(server, channel)
+                    },
+                    |server: &Server, channel: &target::Channel| -> bool {
+                        self.has_open_pane_channel(server, channel)
+                    },
                 )
             })
             .on_click(pane::Message::PaneClicked)
@@ -2007,10 +2019,6 @@ impl Dashboard {
 
                         None
                     }
-                    buffer::context_menu::Event::CopyUrl(url) => {
-                        tasks.push(clipboard::write(url));
-                        None
-                    }
                     buffer::context_menu::Event::CopyText(text) => {
                         tasks.push(clipboard::write(text));
                         None
@@ -2122,12 +2130,19 @@ impl Dashboard {
 
                         None
                     }
-                    buffer::context_menu::Event::OpenQuery(
+                    buffer::context_menu::Event::OpenTarget(
                         server,
-                        query,
+                        target,
                         buffer_action,
                     ) => {
-                        let buffer = buffer::Upstream::Query(server, query);
+                        let buffer = match target {
+                            Target::Channel(channel) => {
+                                buffer::Upstream::Channel(server, channel)
+                            }
+                            Target::Query(query) => {
+                                buffer::Upstream::Query(server, query)
+                            }
+                        };
 
                         tasks.push(self.open_buffer(
                             data::Buffer::Upstream(buffer),
@@ -5032,6 +5047,32 @@ impl Dashboard {
         }
     }
 
+    fn has_focused_pane_channel(
+        &self,
+        server: &Server,
+        channel: &target::Channel,
+    ) -> bool {
+        self.panes
+            .iter()
+            .find(|(window, pane, _)| {
+                self.focus
+                    == Focus {
+                        window: *window,
+                        pane: *pane,
+                    }
+            })
+            .and_then(|(_, _, pane)| match pane.buffer.upstream() {
+                Some(buffer::Upstream::Channel(
+                    focused_server,
+                    focused_channel,
+                )) => Some((focused_server, focused_channel)),
+                _ => None,
+            })
+            .is_some_and(|(focused_server, focused_channel)| {
+                focused_server == server && focused_channel == channel
+            })
+    }
+
     pub fn open_pane_channels(&self) -> Vec<(&Server, &target::Channel)> {
         self.panes
             .iter()
@@ -5051,7 +5092,9 @@ impl Dashboard {
     ) -> bool {
         self.open_pane_channels()
             .iter()
-            .any(|(s, c)| *s == server && *c == channel)
+            .any(|(open_server, open_channel)| {
+                *open_server == server && *open_channel == channel
+            })
     }
 
     pub fn open_pane_server_queries(

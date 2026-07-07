@@ -86,6 +86,7 @@ impl<'a> TargetRef<'a> {
         }
     }
 }
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Target {
     Channel(Channel),

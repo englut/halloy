@@ -154,6 +154,8 @@ pub trait LayoutMessage<'a> {
         visible_url_messages: &HashMap<message::Hash, Vec<url::Url>>,
         hovered_preview: Option<(message::Hash, usize)>,
         hovered_reply: Option<message::Hash>,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> Option<Element<'a, Message>>;
 }
 
@@ -178,6 +180,8 @@ where
         _visible_url_messages: &HashMap<message::Hash, Vec<url::Url>>,
         _hovered_preview: Option<(message::Hash, usize)>,
         _hovered_reply: Option<message::Hash>,
+        _channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        _channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> Option<Element<'a, Message>> {
         self(
             message,
@@ -269,6 +273,8 @@ pub fn view<'a>(
     theme: &'a Theme,
     formatter: impl LayoutMessage<'a> + 'a,
     registry: &'a dyn metadata::Registry,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let divider_font_size =
         config.font.size.map_or(theme::TEXT_SIZE, f32::from) - 1.0;
@@ -498,6 +504,8 @@ pub fn view<'a>(
                             &state.visible_url_messages,
                             state.hovered_preview,
                             state.hover_highlighted_message,
+                            channel_is_focused,
+                            channel_is_open,
                         )
                         .map(|element| (message, element)),
                 )

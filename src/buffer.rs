@@ -620,6 +620,12 @@ impl Buffer {
         theme: &'a Theme,
         is_focused: bool,
         sidebar: &'a sidebar::Sidebar,
+        channel_is_focused: impl Fn(&data::Server, &target::Channel) -> bool
+        + Copy
+        + 'a,
+        channel_is_open: impl Fn(&data::Server, &target::Channel) -> bool
+        + Copy
+        + 'a,
     ) -> Element<'a, Message> {
         match self {
             Buffer::Empty => empty::view(config, sidebar),
@@ -633,10 +639,20 @@ impl Buffer {
                 config,
                 theme,
                 is_focused,
+                channel_is_focused,
+                channel_is_open,
             )
             .map(Message::Channel),
             Buffer::Server(state) => server::view(
-                state, clients, history, previews, config, theme, is_focused,
+                state,
+                clients,
+                history,
+                previews,
+                config,
+                theme,
+                is_focused,
+                channel_is_focused,
+                channel_is_open,
             )
             .map(Message::Server),
             Buffer::Query(state) => query::view(
@@ -648,23 +664,43 @@ impl Buffer {
                 config,
                 theme,
                 is_focused,
+                channel_is_focused,
+                channel_is_open,
             )
             .map(Message::Query),
             Buffer::FileTransfers(state) => {
                 file_transfers::view(state, file_transfers, theme)
                     .map(Message::FileTransfers)
             }
-            Buffer::Logs(state) => {
-                logs::view(state, history, config, theme).map(Message::Logs)
-            }
+            Buffer::Logs(state) => logs::view(
+                state,
+                history,
+                config,
+                theme,
+                channel_is_focused,
+                channel_is_open,
+            )
+            .map(Message::Logs),
             Buffer::Highlights(state) => highlights::view(
-                state, clients, history, previews, config, theme,
+                state,
+                clients,
+                history,
+                previews,
+                config,
+                theme,
+                channel_is_focused,
+                channel_is_open,
             )
             .map(Message::Highlights),
-            Buffer::ChannelDiscovery(state) => {
-                channel_discovery::view(state, clients, config, theme)
-                    .map(Message::ChannelList)
-            }
+            Buffer::ChannelDiscovery(state) => channel_discovery::view(
+                state,
+                clients,
+                config,
+                theme,
+                channel_is_focused,
+                channel_is_open,
+            )
+            .map(Message::ChannelList),
             Buffer::ConfigEditor(state) => {
                 config_editor::view(state, config, theme)
                     .map(Message::ConfigEditor)
