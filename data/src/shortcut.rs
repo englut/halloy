@@ -535,6 +535,7 @@ impl fmt::Display for KeyCode {
         let key = match self.0.clone() {
             key::Key::Named(name) => {
                 let named = match name {
+                    key::Named::Escape => "Esc",
                     key::Named::F1 => "F1",
                     key::Named::F2 => "F2",
                     key::Named::F3 => "F3",
