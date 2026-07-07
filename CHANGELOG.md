@@ -15,6 +15,7 @@ Added:
 - `actions.buffer.click_channel_name` and `actions.buffer.click_highlight` can be set to no action (`"no-action"` or `"noop"`) to not open the channel when clicking on the channel name
 - Explicit portable mode
 - Theme editor can be closed via Escape
+- `actions.buffer.click_channel_discovery` to configure click behavior for channel names in the channel discovery pane (default: `"new-pane"`)
 
 Fixed:
 
@@ -49,7 +50,7 @@ Changed:
 
 Thanks:
 
-- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz
+- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold
 - Bug reports: @luca020400, agent314
 
 # 2026.7.2 (2026-06-08)

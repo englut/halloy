@@ -234,40 +234,44 @@ fn channel_list_view<'a>(
                 .enumerate()
                 .map(|(idx, (channel, topic_content, user_count))| {
                     let channel_text =
-                        selectable_rich_text::<_, message::Link, (), _, _>(
-                            vec![
-                        span(channel.as_str())
-                            .font_maybe(
-                                theme
-                                    .styles()
-                                    .buffer
-                                    .url
-                                    .font_style
-                                    .map(font::get),
-                            )
-                            .color(theme.styles().buffer.url.color)
-                            .link(message::Link::Channel(
-                                server.clone(),
-                                target::Channel::from_str(
-                                    channel.as_str(),
-                                    clients.get_server_chantypes_or_default(
-                                        server,
-                                    ),
-                                    clients.get_server_casemapping_or_default(
-                                        server,
-                                    ),
+                        selectable_rich_text::<_, message::Link, (), _, _>(vec![
+                            span(channel.as_str())
+                                .font_maybe(
+                                    theme
+                                        .styles()
+                                        .buffer
+                                        .url
+                                        .font_style
+                                        .map(font::get),
+                                )
+                                .color(theme.styles().buffer.url.color)
+                                .link_maybe(
+                                    match config
+                                        .actions
+                                        .buffer
+                                        .click_channel_discovery
+                                    {
+                                        ChannelClickAction::OpenChannel(
+                                            buffer_action,
+                                        ) => Some(message::Link::Channel(
+                                            server.clone(),
+                                            target::Channel::from_str(
+                                                channel.as_str(),
+                                                clients
+                                                    .get_server_chantypes_or_default(
+                                                        server,
+                                                    ),
+                                                clients
+                                                    .get_server_casemapping_or_default(
+                                                        server,
+                                                    ),
+                                            ),
+                                            buffer_action,
+                                        )),
+                                        ChannelClickAction::Noop => None,
+                                    },
                                 ),
-                                match config.actions.buffer.click_channel_name {
-                                    ChannelClickAction::OpenChannel(
-                                        buffer_action,
-                                    ) => buffer_action,
-                                    ChannelClickAction::Noop => {
-                                        config.actions.buffer.join_channel
-                                    }
-                                },
-                            )),
-                    ],
-                        )
+                        ])
                         .on_link(Message::Link);
                     let user_count_text =
                         selectable_text(format!("{user_count} users"))

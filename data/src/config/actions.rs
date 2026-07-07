@@ -16,6 +16,7 @@ pub struct Actions {
 pub struct Buffer {
     pub click_channel_name: ChannelClickAction,
     pub click_highlight: ChannelClickAction,
+    pub click_channel_discovery: ChannelClickAction,
     #[serde(alias = "click_nickname")]
     pub click_username: NicknameClickAction,
     pub join_channel: BufferAction,

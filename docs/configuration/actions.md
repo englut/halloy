@@ -40,6 +40,19 @@ Action when clicking on the channel name of a highlight in the highlights buffer
 click_highlight = "new-pane"
 ```
 
+### `click_channel_discovery`
+
+Action when clicking on a channel name in the channel discovery pane. `"new-pane"` opens a new pane each time. `"replace-pane"` replaces the focused pane with the clicked channel. `"new-window"` opens a new window each time. `"no-action"` or `"noop"` will ignore clicks on the channel names in the channel discovery pane.
+
+```toml
+# Type: string
+# Values: "new-pane", "replace-pane", "new-window", "no-action", "noop"
+# Default: "new-pane"
+
+[actions.buffer]
+click_channel_discovery = "new-pane"
+```
+
 ### `click_nickname`
 
 Click action for when interaction with nicknames.
