@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::thread;
 
 use data::audio::Sound;
-use rodio::{Decoder, OutputStreamBuilder, Sink};
+use rodio::{Decoder, DeviceSinkBuilder, Player};
 
 pub fn play(sound: Sound) {
     thread::spawn(move || {
@@ -14,15 +14,15 @@ pub fn play(sound: Sound) {
 }
 
 fn _play(sound: Sound) -> Result<(), PlayError> {
-    let mut stream_handle = OutputStreamBuilder::open_default_stream()?;
-    stream_handle.log_on_drop(false);
-    let sink = Sink::connect_new(stream_handle.mixer());
+    let mut sink_handle = DeviceSinkBuilder::open_default_sink()?;
+    sink_handle.log_on_drop(false);
+    let player = Player::connect_new(sink_handle.mixer());
 
     let source = Decoder::new(Cursor::new(sound))?;
 
-    sink.append(source);
+    player.append(source);
 
-    sink.sleep_until_end();
+    player.sleep_until_end();
 
     Ok(())
 }
@@ -34,7 +34,7 @@ pub enum PlayError {
     #[error(transparent)]
     Playing(Arc<rodio::PlayError>),
     #[error(transparent)]
-    StreamInitialization(Arc<rodio::StreamError>),
+    SinkInitialization(Arc<rodio::DeviceSinkError>),
 }
 
 impl From<rodio::decoder::DecoderError> for PlayError {
@@ -49,8 +49,8 @@ impl From<rodio::PlayError> for PlayError {
     }
 }
 
-impl From<rodio::StreamError> for PlayError {
-    fn from(error: rodio::StreamError) -> Self {
-        Self::StreamInitialization(Arc::new(error))
+impl From<rodio::DeviceSinkError> for PlayError {
+    fn from(error: rodio::DeviceSinkError) -> Self {
+        Self::SinkInitialization(Arc::new(error))
     }
 }
