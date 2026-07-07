@@ -1,4 +1,3 @@
-use data::config::actions::ChannelClickAction;
 use data::dashboard::BufferAction;
 use data::{
     Config, Server, User, channel_discovery, message, metadata, target,
@@ -73,11 +72,13 @@ impl ChannelDiscovery {
                 }
                 message::Link::Channel(server, channel, buffer_action) => (
                     Task::none(),
-                    Some(Event::OpenChannelForServer(
-                        server,
-                        channel,
-                        buffer_action,
-                    )),
+                    buffer_action.map(|buffer_action| {
+                        Event::OpenChannelForServer(
+                            server,
+                            channel,
+                            buffer_action,
+                        )
+                    }),
                 ),
                 _ => (Task::none(), None),
             },
@@ -257,28 +258,19 @@ fn channel_list_view<'a>(
                         theme.styles().buffer.url.font_style.map(font::get),
                     )
                     .color(theme.styles().buffer.url.color)
-                    .link_maybe(
-                        match config.actions.buffer.click_channel_discovery {
-                            ChannelClickAction::OpenChannel(buffer_action) => {
-                                Some(message::Link::Channel(
-                                    server.clone(),
-                                    target::Channel::from_str(
-                                        channel.as_str(),
-                                        clients
-                                            .get_server_chantypes_or_default(
-                                                server,
-                                            ),
-                                        clients
-                                            .get_server_casemapping_or_default(
-                                                server,
-                                            ),
-                                    ),
-                                    buffer_action,
-                                ))
-                            }
-                            ChannelClickAction::Noop => None,
-                        },
-                    ),
+                    .link(message::Link::Channel(
+                        server.clone(),
+                        target::Channel::from_str(
+                            channel.as_str(),
+                            clients.get_server_chantypes_or_default(server),
+                            clients.get_server_casemapping_or_default(server),
+                        ),
+                        config
+                            .actions
+                            .buffer
+                            .click_channel_discovery
+                            .buffer_action(),
+                    )),
             ])
             .on_link(Message::Link)
             .context_menu(

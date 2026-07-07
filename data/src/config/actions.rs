@@ -139,6 +139,17 @@ impl<'de> Deserialize<'de> for ChannelClickAction {
     }
 }
 
+impl ChannelClickAction {
+    pub fn buffer_action(&self) -> Option<BufferAction> {
+        match self {
+            ChannelClickAction::OpenChannel(buffer_action) => {
+                Some(*buffer_action)
+            }
+            ChannelClickAction::Noop => None,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct Notification {

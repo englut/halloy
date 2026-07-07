@@ -4074,10 +4074,10 @@ pub fn quit_text(
 
 #[derive(Debug, Clone)]
 pub enum Link {
-    Channel(Server, target::Channel, BufferAction),
+    Channel(Server, target::Channel, Option<BufferAction>),
     Url(String),
     User(Server, User),
-    GoToMessage(Server, target::Channel, Hash, BufferAction),
+    GoToMessage(Server, target::Channel, Hash, Option<BufferAction>),
     ExpandMessage(DateTime<Utc>, Hash),
     ContractMessage(DateTime<Utc>, Hash),
 }

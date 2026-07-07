@@ -1059,11 +1059,13 @@ impl State {
             )) => {
                 return (
                     Task::none(),
-                    Some(Event::OpenBuffer(
-                        server,
-                        Target::Channel(channel),
-                        buffer_action,
-                    )),
+                    buffer_action.map(|buffer_action| {
+                        Event::OpenBuffer(
+                            server,
+                            Target::Channel(channel),
+                            buffer_action,
+                        )
+                    }),
                 );
             }
             Message::Link(message::Link::Url(url)) => {
@@ -1100,12 +1102,14 @@ impl State {
             )) => {
                 return (
                     Task::none(),
-                    Some(Event::GoToMessage(
-                        server,
-                        channel,
-                        message,
-                        buffer_action,
-                    )),
+                    buffer_action.map(|buffer_action| {
+                        Event::GoToMessage(
+                            server,
+                            channel,
+                            message,
+                            buffer_action,
+                        )
+                    }),
                 );
             }
             Message::ScrollTo(keyed::Hit {

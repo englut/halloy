@@ -5,7 +5,6 @@ use data::buffer::RightAlignmentWidths;
 use data::config::buffer::nickname::ShownStatus;
 use data::config::buffer::{CondensationIcon, Dimmed};
 use data::config::preview::HideUrlCondition;
-use data::dashboard::BufferAction;
 use data::isupport::{CaseMap, PrefixMap};
 use data::preview::{self, Previews};
 use data::redaction::Redaction;
@@ -1784,10 +1783,8 @@ impl<'a> ChannelQueryLayout<'a> {
                     .style(theme::button::reply_preview)
                     .padding(0)
                     .on_press(Message::Link(message::Link::GoToMessage(
-                        server,
-                        channel,
-                        hash,
-                        BufferAction::default(), // Currently unimportant, since the buffer will always be already open
+                        server, channel, hash,
+                        None, // Currently unimportant, since the buffer will always be already open
                     )))
                     .into()
             } else {

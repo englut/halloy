@@ -34,7 +34,7 @@ pub fn update(message: Message) -> Option<Event> {
             server,
             channel,
             buffer_action,
-        )) => Some(Event::OpenChannel(server, channel, buffer_action)),
+        )) => Some(Event::OpenChannel(server, channel, buffer_action?)),
         Message::Link(message::Link::Url(url)) => Some(Event::OpenUrl(url)),
         Message::Link(message::Link::User(_, user)) => {
             Some(Event::ContextMenu(context_menu::Event::InsertNickname(
