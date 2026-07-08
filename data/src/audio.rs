@@ -95,14 +95,16 @@ impl TryFrom<&str> for Internal {
 fn find_external_sound(sound: &str) -> Result<PathBuf, LoadError> {
     let sounds_dir = Config::sounds_dir();
 
-    for e in walkdir::WalkDir::new(sounds_dir.clone())
+    for dir_entry in walkdir::WalkDir::new(sounds_dir.clone())
+        .follow_links(true)
+        .max_depth(32)
         .into_iter()
         .filter_map(Result::ok)
     {
-        if e.metadata().is_ok_and(|data| data.is_file())
-            && e.file_name() == sound
+        if dir_entry.metadata().is_ok_and(|data| data.is_file())
+            && dir_entry.file_name() == sound
         {
-            return Ok(e.path().to_path_buf());
+            return Ok(dir_entry.path().to_path_buf());
         }
     }
 
