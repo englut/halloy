@@ -119,7 +119,7 @@ include = { channels = ["#halloy"] }
 Sound to play when notifying for a highlight. If not specified then the sound
 specified for highlight notifications will be used. Supports both built-in
 sounds, and external sound files (`mp3`, `ogg`, `flac` or `wav` placed inside
-the `sounds` folder within the configuration directory). See
+the `sounds` folder within the [configuration directory](/configuration#directory)). See
 [notifications](/configuration/notifications#sound) for a list of all built-in
 sounds.
 
