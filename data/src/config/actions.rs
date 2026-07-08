@@ -11,7 +11,7 @@ pub struct Actions {
     pub notification: Notification,
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct Buffer {
     pub click_channel_name: ChannelClickAction,
@@ -24,6 +24,23 @@ pub struct Buffer {
     pub open_internal: BufferAction,
     pub message_channel: BufferAction,
     pub message_user: BufferAction,
+    pub only_contract_expanded_message: bool,
+}
+
+impl Default for Buffer {
+    fn default() -> Self {
+        Self {
+            click_channel_name: ChannelClickAction::default(),
+            click_highlight: ChannelClickAction::default(),
+            click_channel_discovery: ChannelClickAction::default(),
+            click_username: NicknameClickAction::default(),
+            join_channel: BufferAction::default(),
+            open_internal: BufferAction::default(),
+            message_channel: BufferAction::default(),
+            message_user: BufferAction::default(),
+            only_contract_expanded_message: true,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]

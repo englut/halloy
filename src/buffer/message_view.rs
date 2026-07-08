@@ -860,7 +860,12 @@ impl<'a> ChannelQueryLayout<'a> {
             formatter.casemapping,
             self.theme,
             Message::Link,
-            link,
+            link.map(|link| {
+                (
+                    link,
+                    self.config.actions.buffer.only_contract_expanded_message,
+                )
+            }),
             message_style,
             message_font_style,
             Some(|color: Color| -> Color {
@@ -1018,7 +1023,7 @@ impl<'a> ChannelQueryLayout<'a> {
             formatter.casemapping,
             self.theme,
             move |_| Message::Link(moved_link.clone()),
-            Some(link),
+            Some((link, true)),
             message_style,
             message_font_style,
             Some(|color: Color| -> Color {
