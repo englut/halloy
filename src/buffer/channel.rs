@@ -67,6 +67,8 @@ pub fn view<'a>(
     config: &'a Config,
     theme: &'a Theme,
     is_focused: bool,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let server = &state.server;
     let connected = matches!(clients.status(server), client::Status::Connected);
@@ -160,6 +162,8 @@ pub fn view<'a>(
             theme,
             message_formatter,
             clients.get_registry(&state.server),
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::ScrollView),
     )
@@ -190,6 +194,8 @@ pub fn view<'a>(
         config,
         theme,
         previews.collection(),
+        channel_is_focused,
+        channel_is_open,
     )
     .unwrap_or_else(|| column![].into());
 
@@ -587,6 +593,8 @@ fn topic<'a>(
     config: &'a Config,
     theme: &'a Theme,
     previews: &'a preview::Collection,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Option<Element<'a, Message>> {
     let topic_enabled = settings
         .map_or(config.buffer.channel.topic_banner.enabled, |settings| {
@@ -620,6 +628,8 @@ fn topic<'a>(
             theme,
             clients.get_registry(&state.server),
             previews,
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::Topic),
     )

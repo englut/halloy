@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
-use data::{Config, Image, Preview, client, history, message, metadata};
+use data::{
+    Config, Image, Preview, Server, client, history, message, metadata, target,
+};
 use iced::widget::{container, row};
 use iced::{Length, Size, Task};
 
@@ -27,6 +29,8 @@ pub fn view<'a>(
     history: &'a history::Manager,
     config: &'a Config,
     theme: &'a Theme,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let messages = container(
         scroll_view::view(
@@ -102,6 +106,8 @@ pub fn view<'a>(
                 _ => None,
             },
             metadata::EMPTY,
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::ScrollView),
     )

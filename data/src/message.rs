@@ -4074,28 +4074,12 @@ pub fn quit_text(
 
 #[derive(Debug, Clone)]
 pub enum Link {
-    Channel(Server, target::Channel, BufferAction),
+    Channel(Server, target::Channel, Option<BufferAction>),
     Url(String),
     User(Server, User),
-    GoToMessage(Server, target::Channel, Hash, BufferAction),
+    GoToMessage(Server, target::Channel, Hash, Option<BufferAction>),
     ExpandMessage(DateTime<Utc>, Hash),
     ContractMessage(DateTime<Utc>, Hash),
-}
-
-impl Link {
-    pub fn user(&self) -> Option<&User> {
-        match self {
-            Link::User(_, user) => Some(user),
-            _ => None,
-        }
-    }
-
-    pub fn url(&self) -> Option<&String> {
-        match self {
-            Link::Url(url) => Some(url),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

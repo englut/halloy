@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use data::buffer::RightAlignmentWidths;
 use data::dashboard::BufferAction;
-use data::target::Target;
+use data::target::{self, Target};
 use data::user::Nick;
 use data::{
     Config, Image, Preview, User, buffer, client, history, message, preview,
@@ -80,6 +80,8 @@ pub fn view<'a>(
     config: &'a Config,
     theme: &'a Theme,
     is_focused: bool,
+    channel_is_focused: impl Fn(&data::Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&data::Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let chantypes = clients.get_server_chantypes_or_default(&state.server);
     let prefix = clients.get_server_prefix_or_default(&state.server);
@@ -293,6 +295,8 @@ pub fn view<'a>(
                 }
             },
             clients.get_registry(&state.server),
+            channel_is_focused,
+            channel_is_open,
         )
         .map(Message::ScrollView),
     )

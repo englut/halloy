@@ -1,5 +1,5 @@
 use data::user::{ChannelUsers, User};
-use data::{Config, file_transfer, history, preview};
+use data::{Config, Server, file_transfer, history, preview, target};
 use iced::widget::text::Wrapping;
 use iced::widget::{button, center, column, container, pane_grid, row, text};
 use iced::{Length, Padding, Size, Task, padding};
@@ -67,6 +67,8 @@ impl Pane {
         theme: &'a Theme,
         settings: Option<&'a buffer::Settings>,
         is_popout: bool,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
     ) -> widget::Content<'a, Message> {
         let title: Element<'a, Message> = match &self.buffer {
             Buffer::Empty => text("").into(),
@@ -175,7 +177,6 @@ impl Pane {
             title,
             id,
             panes,
-            is_focused,
             maximized,
             clients,
             settings,
@@ -199,6 +200,8 @@ impl Pane {
                 theme,
                 is_focused,
                 sidebar,
+                channel_is_focused,
+                channel_is_open,
             )
             .map(move |msg| Message::Buffer(id, msg));
 
@@ -291,7 +294,6 @@ impl TitleBar {
         title: Element<'a, Message>,
         id: pane_grid::Pane,
         panes: usize,
-        _is_focused: bool,
         maximized: bool,
         clients: &'a data::client::Map,
         settings: Option<&'a buffer::Settings>,

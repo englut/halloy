@@ -1,6 +1,7 @@
-use data::config::actions::ChannelClickAction;
 use data::dashboard::BufferAction;
-use data::{Config, Server, channel_discovery, message, metadata, target};
+use data::{
+    Config, Server, User, channel_discovery, message, metadata, target,
+};
 use iced::widget::{
     self, button, center, column, container, operation, pick_list, row, rule,
     scrollable, span, text, text_input,
@@ -8,7 +9,9 @@ use iced::widget::{
 use iced::{Color, ContentFit, Length, Task, alignment, padding};
 
 use crate::appearance::theme;
-use crate::buffer::context_menu::{self, Context};
+use crate::buffer::context_menu::{
+    self, ChannelContext, Context, UrlContext, UserContext,
+};
 use crate::widget::{
     Element, message_content, selectable_rich_text, selectable_text,
 };
@@ -69,11 +72,13 @@ impl ChannelDiscovery {
                 }
                 message::Link::Channel(server, channel, buffer_action) => (
                     Task::none(),
-                    Some(Event::OpenChannelForServer(
-                        server,
-                        channel,
-                        buffer_action,
-                    )),
+                    buffer_action.map(|buffer_action| {
+                        Event::OpenChannelForServer(
+                            server,
+                            channel,
+                            buffer_action,
+                        )
+                    }),
                 ),
                 _ => (Task::none(), None),
             },
@@ -110,6 +115,8 @@ pub fn view<'a>(
     clients: &'a data::client::Map,
     config: &'a Config,
     theme: &'a Theme,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
     let manager = state
         .server
@@ -188,7 +195,13 @@ pub fn view<'a>(
                 }
             } else {
                 container(channel_list_view(
-                    items, server, clients, config, theme,
+                    items,
+                    server,
+                    clients,
+                    config,
+                    theme,
+                    channel_is_focused,
+                    channel_is_open,
                 ))
             }
         }
@@ -226,125 +239,152 @@ fn channel_list_view<'a>(
     clients: &'a data::client::Map,
     config: &'a Config,
     theme: &'a Theme,
+    channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
+    channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'a,
 ) -> Element<'a, Message> {
-    scrollable(
-        column(
-            items
-                .into_iter()
-                .enumerate()
-                .map(|(idx, (channel, topic_content, user_count))| {
-                    let channel_text =
-                        selectable_rich_text::<_, message::Link, (), _, _>(vec![
-                            span(channel.as_str())
-                                .font_maybe(
-                                    theme
-                                        .styles()
-                                        .buffer
-                                        .url
-                                        .font_style
-                                        .map(font::get),
-                                )
-                                .color(theme.styles().buffer.url.color)
-                                .link_maybe(
-                                    match config
-                                        .actions
-                                        .buffer
-                                        .click_channel_discovery
-                                    {
-                                        ChannelClickAction::OpenChannel(
-                                            buffer_action,
-                                        ) => Some(message::Link::Channel(
-                                            server.clone(),
-                                            target::Channel::from_str(
-                                                channel.as_str(),
-                                                clients
-                                                    .get_server_chantypes_or_default(
-                                                        server,
-                                                    ),
-                                                clients
-                                                    .get_server_casemapping_or_default(
-                                                        server,
-                                                    ),
-                                            ),
-                                            buffer_action,
-                                        )),
-                                        ChannelClickAction::Noop => None,
-                                    },
-                                ),
-                        ])
-                        .on_link(Message::Link);
-                    let user_count_text =
-                        selectable_text(format!("{user_count} users"))
-                            .style(theme::selectable_text::timestamp);
-
-                    let has_topic = topic_content.text().is_empty();
-                    let topic_text = if has_topic {
-                        None
-                    } else {
-                        Some(message_content::with_context(
-                            topic_content,
-                            &[],
-                            server,
-                            metadata::EMPTY,
+    let channel_list = items
+        .into_iter()
+        .enumerate()
+        .map(|(idx, (channel, topic_content, user_count))| {
+            let channel_text = selectable_rich_text::<
+                _,
+                message::Link,
+                context_menu::Entry,
+                _,
+                _,
+            >(vec![
+                span(channel.as_str())
+                    .font_maybe(
+                        theme.styles().buffer.url.font_style.map(font::get),
+                    )
+                    .color(theme.styles().buffer.url.color)
+                    .link(message::Link::Channel(
+                        server.clone(),
+                        target::Channel::from_str(
+                            channel.as_str(),
                             clients.get_server_chantypes_or_default(server),
                             clients.get_server_casemapping_or_default(server),
-                            theme,
-                            Message::Link,
-                            None,
-                            theme::selectable_text::topic,
-                            theme::font_style::topic,
-                            Option::<fn(Color) -> Color>::None,
-                            move |link| match link {
-                                message::Link::Url(_) => {
-                                    context_menu::Entry::url_list(
-                                        false, None, None, false, false, false,
-                                    )
-                                }
-                                _ => vec![],
-                            },
-                            move |link, entry, length| {
-                                entry
-                                    .view(
-                                        link.url().map(|url| Context::Url {
-                                            url,
-                                            message: None,
-                                            selected_reactions: vec![],
-                                        }),
-                                        length,
-                                        config,
-                                        theme,
-                                    )
-                                    .map(Message::ContextMenu)
-                            },
-                            None,
+                        ),
+                        config
+                            .actions
+                            .buffer
+                            .click_channel_discovery
+                            .buffer_action(),
+                    )),
+            ])
+            .on_link(Message::Link)
+            .context_menu(
+                move |link| match link {
+                    message::Link::Channel(server, channel, _) => {
+                        context_menu::Entry::channel_list(
+                            channel_is_open(server, channel),
+                            channel_is_focused(server, channel),
+                        )
+                    }
+                    _ => vec![],
+                },
+                move |link, entry, length| {
+                    entry
+                        .view(
+                            Context::link(
+                                link,
+                                Option::<fn(&User) -> UserContext>::None,
+                                Option::<fn(&str) -> UrlContext>::None,
+                                Some(|server, channel| ChannelContext {
+                                    server,
+                                    channel,
+                                    is_open: channel_is_open(server, channel),
+                                }),
+                            ),
+                            length,
                             config,
-                        ))
-                    };
+                            theme,
+                        )
+                        .map(Message::ContextMenu)
+                },
+            );
+            let user_count_text =
+                selectable_text(format!("{user_count} users"))
+                    .style(theme::selectable_text::timestamp);
 
-                    container(column![
-                        row![
-                            channel_text,
-                            selectable_text(" "),
-                            user_count_text,
-                        ],
-                        topic_text,
-                    ])
-                    .padding(padding::top(6).bottom(6).right(4).left(8))
-                    .width(Length::Fill)
-                    .align_y(alignment::Vertical::Center)
-                    .style(move |theme| theme::container::table(theme, idx))
-                    .into()
-                })
-                .collect::<Vec<_>>(),
-        )
-        .spacing(0),
-    )
-    .direction(scrollable::Direction::Vertical(
-        scrollable::Scrollbar::default()
-            .width(config.pane.scrollbar.width)
-            .scroller_width(config.pane.scrollbar.scroller_width),
-    ))
-    .into()
+            let has_topic = topic_content.text().is_empty();
+            let topic_text = if has_topic {
+                None
+            } else {
+                Some(message_content::with_context(
+                    topic_content,
+                    &[],
+                    server,
+                    metadata::EMPTY,
+                    clients.get_server_chantypes_or_default(server),
+                    clients.get_server_casemapping_or_default(server),
+                    theme,
+                    Message::Link,
+                    None,
+                    theme::selectable_text::topic,
+                    theme::font_style::topic,
+                    Option::<fn(Color) -> Color>::None,
+                    move |link| match link {
+                        message::Link::Url(_) => context_menu::Entry::url_list(
+                            false, None, None, false, false, false,
+                        ),
+                        message::Link::Channel(server, channel, _) => {
+                            context_menu::Entry::channel_list(
+                                channel_is_open(server, channel),
+                                channel_is_focused(server, channel),
+                            )
+                        }
+                        _ => vec![],
+                    },
+                    move |link, entry, length| {
+                        entry
+                            .view(
+                                Context::link(
+                                    link,
+                                    Option::<fn(&User) -> UserContext>::None,
+                                    Some(|url| UrlContext {
+                                        url,
+                                        message: None,
+                                        selected_reactions: vec![],
+                                    }),
+                                    Some(|server, channel| ChannelContext {
+                                        server,
+                                        channel,
+                                        is_open: channel_is_open(
+                                            server, channel,
+                                        ),
+                                    }),
+                                ),
+                                length,
+                                config,
+                                theme,
+                            )
+                            .map(Message::ContextMenu)
+                    },
+                    None,
+                    config,
+                ))
+            };
+
+            container(column![
+                row![channel_text, selectable_text(" "), user_count_text,],
+                topic_text,
+            ])
+            .padding(padding::top(6).bottom(6).right(4).left(8))
+            .width(Length::Fill)
+            .align_y(alignment::Vertical::Center)
+            .style(move |theme| theme::container::table(theme, idx))
+            .into()
+        })
+        .collect::<Vec<_>>();
+
+    scrollable(column(channel_list).spacing(0))
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::default()
+                .width(config.pane.scrollbar.width)
+                .scroller_width(config.pane.scrollbar.scroller_width),
+        ))
+        .into()
 }
 
 fn unsafe_list_view<'a>(
