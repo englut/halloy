@@ -17,6 +17,8 @@ pub struct Sidebar {
     pub max_width: Option<u16>,
     #[serde(deserialize_with = "deserialize_unread_indicator")]
     pub unread_indicator: UnreadIndicator,
+    #[serde(deserialize_with = "deserialize_highlight_indicator")]
+    pub highlight_indicator: HighlightIndicator,
     pub position: Position,
     pub order_by: OrderBy,
     pub scrollbar: Scrollbar,
@@ -148,15 +150,10 @@ pub struct UnreadIndicator {
     pub icon: Icon,
     #[serde(deserialize_with = "deserialize_u32_positive_integer")]
     pub icon_size: u32,
-    pub highlight_icon: Icon,
-    #[serde(deserialize_with = "deserialize_u32_positive_integer")]
-    pub highlight_icon_size: u32,
     pub show_on_open_buffers: bool,
     pub query_as_highlight: bool,
     pub exclude: Option<Inclusivities>,
     pub include: Option<Inclusivities>,
-    pub highlight_exclude: Option<Inclusivities>,
-    pub highlight_include: Option<Inclusivities>,
 }
 
 impl Default for UnreadIndicator {
@@ -165,28 +162,20 @@ impl Default for UnreadIndicator {
             title: false,
             icon: Icon::Dot,
             icon_size: 6,
-            highlight_icon: Icon::CircleEmpty,
-            highlight_icon_size: 6,
             show_on_open_buffers: true,
             query_as_highlight: false,
             exclude: None,
             include: None,
-            highlight_exclude: None,
-            highlight_include: None,
         }
     }
 }
 
 impl UnreadIndicator {
-    pub fn has_unread_icon(&self) -> bool {
+    pub fn has_icon(&self) -> bool {
         !matches!(self.icon, Icon::None)
     }
 
-    pub fn has_unread_highlight_icon(&self) -> bool {
-        !matches!(self.highlight_icon, Icon::None)
-    }
-
-    pub fn should_indicate_unread(
+    pub fn should_indicate(
         &self,
         target: Option<&Target>,
         server: &Server,
@@ -205,30 +194,6 @@ impl UnreadIndicator {
             is_server_included(
                 self.include.as_ref(),
                 self.exclude.as_ref(),
-                server,
-            )
-        }
-    }
-
-    pub fn should_indicate_highlight(
-        &self,
-        target: Option<&Target>,
-        server: &Server,
-        casemapping: isupport::CaseMap,
-    ) -> bool {
-        if let Some(target) = target {
-            is_target_included(
-                self.highlight_include.as_ref(),
-                self.highlight_exclude.as_ref(),
-                None,
-                target.as_target_ref(),
-                server,
-                casemapping,
-            )
-        } else {
-            is_server_included(
-                self.highlight_include.as_ref(),
-                self.highlight_exclude.as_ref(),
                 server,
             )
         }
@@ -247,20 +212,105 @@ where
             "title" => Ok(UnreadIndicator {
                 title: true,
                 icon: Icon::None,
-                highlight_icon: Icon::None,
                 ..UnreadIndicator::default()
             }),
             "none" => Ok(UnreadIndicator {
                 title: false,
                 icon: Icon::None,
-                highlight_icon: Icon::None,
                 ..UnreadIndicator::default()
             }),
             "dot" => Ok(UnreadIndicator {
                 title: false,
                 icon: Icon::Dot,
-                highlight_icon: Icon::Dot,
                 ..UnreadIndicator::default()
+            }),
+            _ => Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(string),
+                &"one of: \"dot\", \"title\", or \"none\"",
+            )),
+        })
+        .map(|map| map.deserialize())
+        .deserialize(deserializer)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct HighlightIndicator {
+    pub title: bool,
+    pub icon: Icon,
+    #[serde(deserialize_with = "deserialize_u32_positive_integer")]
+    pub icon_size: u32,
+    pub show_on_open_buffers: bool,
+    pub exclude: Option<Inclusivities>,
+    pub include: Option<Inclusivities>,
+}
+
+impl Default for HighlightIndicator {
+    fn default() -> Self {
+        HighlightIndicator {
+            title: false,
+            icon: Icon::CircleEmpty,
+            icon_size: 6,
+            show_on_open_buffers: true,
+            exclude: None,
+            include: None,
+        }
+    }
+}
+
+impl HighlightIndicator {
+    pub fn has_icon(&self) -> bool {
+        !matches!(self.icon, Icon::None)
+    }
+
+    pub fn should_indicate(
+        &self,
+        target: Option<&Target>,
+        server: &Server,
+        casemapping: isupport::CaseMap,
+    ) -> bool {
+        if let Some(target) = target {
+            is_target_included(
+                self.include.as_ref(),
+                self.exclude.as_ref(),
+                None,
+                target.as_target_ref(),
+                server,
+                casemapping,
+            )
+        } else {
+            is_server_included(
+                self.include.as_ref(),
+                self.exclude.as_ref(),
+                server,
+            )
+        }
+    }
+}
+
+pub fn deserialize_highlight_indicator<'de, D>(
+    deserializer: D,
+) -> Result<HighlightIndicator, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[allow(clippy::redundant_closure_for_method_calls)]
+    UntaggedEnumVisitor::new()
+        .string(|string| match string {
+            "title" => Ok(HighlightIndicator {
+                title: true,
+                icon: Icon::None,
+                ..HighlightIndicator::default()
+            }),
+            "none" => Ok(HighlightIndicator {
+                title: false,
+                icon: Icon::None,
+                ..HighlightIndicator::default()
+            }),
+            "dot" => Ok(HighlightIndicator {
+                title: false,
+                icon: Icon::Dot,
+                ..HighlightIndicator::default()
             }),
             _ => Err(serde::de::Error::invalid_value(
                 serde::de::Unexpected::Str(string),
