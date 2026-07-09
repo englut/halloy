@@ -300,6 +300,8 @@ show_on_open_buffers = false
 ### `query_as_highlight`
 
 Treat unread query (direct message) buffers as highlights for sidebar styling.
+When enabled, unread query buffers styled as highlights follow
+`highlight_exclude` / `highlight_include`, not `exclude` / `include`.
 
 ```toml
 # Type: boolean
@@ -315,6 +317,10 @@ query_as_highlight = true
 [Exclusion conditions](/configuration/conditions.md) for which unread indicators
 won't be shown. Inclusion conditions will take precedence over exclusion
 conditions. You can also exclude all conditions by setting to `"all"` or `"*"`.
+Unlike earlier versions, `exclude` does not suppress highlight indicators.
+Highlight indicators still appear for excluded buffers unless `highlight_exclude`
+is also set. To hide both unread and highlight indicators for the same buffers,
+set the same conditions on `exclude` and `highlight_exclude`.
 
 ```toml
 # Type: inclusion/exclusion conditions
@@ -340,6 +346,39 @@ setting.
 [sidebar.unread_indicator]
 exclude = "*"
 include = { channels = ["#halloy"] }
+```
+
+### `highlight_exclude`
+
+[Exclusion conditions](/configuration/conditions.md) for which highlight
+indicators won't be shown. Inclusion conditions will take precedence over
+exclusion conditions. You can also exclude all conditions by setting to `"all"`
+or `"*"`.
+
+```toml
+# Type: inclusion/exclusion conditions
+# Values: channel, user, & server inclusion/exclusion conditions
+# Default: not set
+
+[sidebar.unread_indicator]
+highlight_exclude = { channels = ["#noisy-channel"] }
+```
+
+### `highlight_include`
+
+[Inclusion conditions](/configuration/conditions.md) for which highlight
+indicators will be shown. Highlight indicators are enabled in all conditions
+unless explicitly excluded, so this setting is only relevant when combined with
+the `highlight_exclude` setting.
+
+```toml
+# Type: inclusion/exclusion conditions
+# Values: channel, user, & server inclusion/exclusion conditions
+# Default: not set
+
+[sidebar.unread_indicator]
+highlight_exclude = "*"
+highlight_include = { channels = ["#halloy"] }
 ```
 
 ## `user_menu`

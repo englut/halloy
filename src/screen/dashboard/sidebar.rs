@@ -984,6 +984,12 @@ fn upstream_buffer_button<'a>(
             buffer.server(),
             casemapping,
         );
+    let should_indicate_highlight =
+        config.sidebar.unread_indicator.should_indicate_highlight(
+            buffer.target().as_ref(),
+            buffer.server(),
+            casemapping,
+        );
     let is_unread_query =
         matches!(buffer, buffer::Upstream::Query(_, _)) && has_unread;
     let has_highlight = has_highlight
@@ -992,7 +998,7 @@ fn upstream_buffer_button<'a>(
 
     let show_highlight_icon = has_highlight
         && config.sidebar.unread_indicator.has_unread_highlight_icon()
-        && should_indicate_unread;
+        && should_indicate_highlight;
     let show_unread_icon = has_unread
         && config.sidebar.unread_indicator.has_unread_icon()
         && should_indicate_unread;
@@ -1001,7 +1007,7 @@ fn upstream_buffer_button<'a>(
         && should_indicate_unread;
     let show_highlight_unread_title = has_highlight
         && config.sidebar.unread_indicator.title
-        && should_indicate_unread;
+        && should_indicate_highlight;
 
     let buffer_title_style = if show_highlight_unread_title {
         theme::text::highlight_indicator
