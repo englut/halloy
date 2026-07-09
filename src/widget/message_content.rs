@@ -374,7 +374,13 @@ fn message_content_impl<'a, T: Copy + 'a, M: 'a + std::clone::Clone>(
                                 &default_link
                                 && (span.link.is_none() || *overwrite_link)
                             {
-                                span.link(default_link.clone())
+                                let mut link = default_link.clone();
+
+                                if let Some(span_link) = span.link.as_ref() {
+                                    link.set_context(span_link);
+                                }
+
+                                span.link(link)
                             } else {
                                 span
                             },

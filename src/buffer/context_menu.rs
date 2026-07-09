@@ -67,19 +67,45 @@ impl<'a> Context<'a> {
         >,
     ) -> Option<Context<'a>> {
         match link {
-            message::Link::User(_, user) => {
-                into_user_context.map(|into_user_context| {
-                    Context::User(into_user_context(user))
-                })
-            }
-            message::Link::Url(url) => into_url_context
+            message::Link::User(_, user)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::User(user)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::User(user)),
+            ) => into_user_context.map(|into_user_context| {
+                Context::User(into_user_context(user))
+            }),
+            message::Link::Url(url)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::Url(url)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::Url(url)),
+            ) => into_url_context
                 .map(|into_url_context| Context::Url(into_url_context(url))),
             message::Link::Channel(server, channel, _)
-            | message::Link::GoToMessage(server, channel, _, _) => {
-                into_channel_context.map(|into_channel_context| {
-                    Context::Channel(into_channel_context(server, channel))
-                })
-            }
+            | message::Link::GoToMessage(server, channel, _, _)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::Channel(server, channel)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::Channel(server, channel)),
+            ) => into_channel_context.map(|into_channel_context| {
+                Context::Channel(into_channel_context(server, channel))
+            }),
             message::Link::ExpandMessage(..)
             | message::Link::ContractMessage(..) => None,
         }
@@ -132,6 +158,59 @@ pub enum UserAvatar<'a> {
 }
 
 impl Entry {
+    pub fn link_list<'a>(
+        link: &'a message::Link,
+        into_user_list: Option<impl Fn(&'a User) -> Vec<Self>>,
+        into_url_list: Option<impl Fn(&'a str) -> Vec<Self>>,
+        into_channel_list: Option<
+            impl Fn(&'a Server, &'a target::Channel) -> Vec<Self>,
+        >,
+    ) -> Vec<Self> {
+        match link {
+            message::Link::User(_, user)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::User(user)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::User(user)),
+            ) => into_user_list
+                .map_or(vec![], |into_user_list| into_user_list(user)),
+            message::Link::Url(url)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::Url(url)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::Url(url)),
+            ) => {
+                into_url_list.map_or(vec![], |into_url_list| into_url_list(url))
+            }
+            message::Link::Channel(server, channel, _)
+            | message::Link::GoToMessage(server, channel, _, _)
+            | message::Link::ExpandMessage(
+                _,
+                _,
+                Some(message::LinkContext::Channel(server, channel)),
+            )
+            | message::Link::ContractMessage(
+                _,
+                _,
+                Some(message::LinkContext::Channel(server, channel)),
+            ) => into_channel_list.map_or(vec![], |into_channel_list| {
+                into_channel_list(server, channel)
+            }),
+            message::Link::ExpandMessage(..)
+            | message::Link::ContractMessage(..) => vec![],
+        }
+    }
+
     pub fn not_sent_message_list(can_resend: bool) -> Vec<Self> {
         if can_resend {
             vec![Entry::DeleteMessage, Entry::ResendMessage]
@@ -264,6 +343,7 @@ impl Entry {
         our_user: Option<&User>,
         file_transfer_enabled: bool,
         has_metadata: bool,
+        message_is_rerouted: bool,
     ) -> Vec<Self> {
         let mut user_info_entries = vec![Entry::UserInfo];
 
@@ -275,7 +355,15 @@ impl Entry {
         if is_channel {
             if user_in_channel.is_none() {
                 let mut list = user_info_entries;
-                list.extend([Entry::HorizontalRule, Entry::Whowas]);
+
+                list.push(Entry::HorizontalRule);
+
+                if message_is_rerouted {
+                    list.push(Entry::Whois);
+                } else {
+                    list.push(Entry::Whowas);
+                }
+
                 list
             } else if our_user.is_some_and(|u| {
                 u.has_access_level(data::user::AccessLevel::Oper)
@@ -1123,6 +1211,7 @@ pub fn user<'a>(
         our_user,
         config.file_transfer.enabled,
         has_user_metadata(user, registry, config),
+        false,
     );
 
     user_with_entries(
@@ -1141,7 +1230,7 @@ pub fn user<'a>(
     )
 }
 
-pub fn rerouted_private_user<'a>(
+pub fn rerouted_message_user<'a>(
     content: impl Into<Element<'a, Message>>,
     server: &'a Server,
     prefix: &'a [isupport::PrefixMap],

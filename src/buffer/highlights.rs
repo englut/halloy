@@ -107,14 +107,22 @@ pub fn view<'a>(
                 ])
                 .on_link(scroll_view::Message::Link)
                 .context_menu(
-                    move |link| match link {
-                        message::Link::GoToMessage(server, channel, _, _) => {
-                            context_menu::Entry::channel_list(
-                                channel_is_open(server, channel),
-                                channel_is_focused(server, channel),
-                            )
-                        }
-                        _ => vec![],
+                    move |link| {
+                        context_menu::Entry::link_list(
+                                    link,
+                                    Option::<
+                                        fn(&User) -> Vec<context_menu::Entry>,
+                                    >::None,
+                                    Option::<
+                                        fn(&str) -> Vec<context_menu::Entry>,
+                                    >::None,
+                                    Some(|server, channel| {
+                                        context_menu::Entry::channel_list(
+                                            channel_is_open(server, channel),
+                                            channel_is_focused(server, channel),
+                                        )
+                                    }),
+                                )
                     },
                     move |link, entry, length| {
                         entry
@@ -211,30 +219,35 @@ pub fn view<'a>(
                     theme::selectable_text::default,
                     theme::font_style::primary,
                     Option::<fn(Color) -> Color>::None,
-                    move |link| match link {
-                        message::Link::User(_, _) => {
-                            context_menu::Entry::user_list(
-                                true,
-                                current_user,
-                                None,
-                                config.file_transfer.enabled,
-                                context_menu::has_user_metadata(
-                                    user,
-                                    clients.get_registry(server),
-                                    config,
-                                ),
-                            )
-                        }
-                        message::Link::Url(_) => context_menu::Entry::url_list(
-                            false, None, None, false, false, false,
-                        ),
-                        message::Link::Channel(server, channel, _) => {
-                            context_menu::Entry::channel_list(
-                                channel_is_open(server, channel),
-                                channel_is_focused(server, channel),
-                            )
-                        }
-                        _ => vec![],
+                    move |link| {
+                        context_menu::Entry::link_list(
+                            link,
+                            Some(|user| {
+                                context_menu::Entry::user_list(
+                                    true,
+                                    current_user,
+                                    None,
+                                    config.file_transfer.enabled,
+                                    context_menu::has_user_metadata(
+                                        user,
+                                        clients.get_registry(server),
+                                        config,
+                                    ),
+                                    true,
+                                )
+                            }),
+                            Some(|_| {
+                                context_menu::Entry::url_list(
+                                    false, None, None, false, false, false,
+                                )
+                            }),
+                            Some(|server, channel| {
+                                context_menu::Entry::channel_list(
+                                    channel_is_open(server, channel),
+                                    channel_is_focused(server, channel),
+                                )
+                            }),
+                        )
                     },
                     move |link, entry, length| {
                         let context = Context::link(

@@ -4078,8 +4078,40 @@ pub enum Link {
     Url(String),
     User(Server, User),
     GoToMessage(Server, target::Channel, Hash, Option<BufferAction>),
-    ExpandMessage(DateTime<Utc>, Hash),
-    ContractMessage(DateTime<Utc>, Hash),
+    ExpandMessage(DateTime<Utc>, Hash, Option<LinkContext>),
+    ContractMessage(DateTime<Utc>, Hash, Option<LinkContext>),
+}
+
+#[derive(Debug, Clone)]
+pub enum LinkContext {
+    User(User),
+    Url(String),
+    Channel(Server, target::Channel),
+}
+
+impl Link {
+    pub fn set_context(&mut self, other: &Link) {
+        match self {
+            Link::ExpandMessage(_, _, link_context)
+            | Link::ContractMessage(_, _, link_context) => {
+                *link_context = match other {
+                    Link::Channel(server, channel, _)
+                    | Link::GoToMessage(server, channel, _, _) => Some(
+                        LinkContext::Channel(server.clone(), channel.clone()),
+                    ),
+                    Link::Url(url) => Some(LinkContext::Url(url.clone())),
+                    Link::User(_, user) => {
+                        Some(LinkContext::User(user.clone()))
+                    }
+                    Link::ExpandMessage(..) | Link::ContractMessage(..) => None,
+                };
+            }
+            Link::Channel(..)
+            | Link::Url(..)
+            | Link::User(..)
+            | Link::GoToMessage(..) => (),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

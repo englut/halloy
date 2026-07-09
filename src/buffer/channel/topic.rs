@@ -131,29 +131,36 @@ pub fn view<'a>(
             theme::selectable_text::topic,
             theme::font_style::topic,
             Option::<fn(Color) -> Color>::None,
-            move |link| match link {
-                message::Link::User(_, user) => {
-                    let user_in_channel =
-                        users.and_then(|users| users.resolve(user));
+            move |link| {
+                context_menu::Entry::link_list(
+                    link,
+                    Some(|user| {
+                        let user_in_channel =
+                            users.and_then(|users| users.resolve(user));
 
-                    context_menu::Entry::user_list(
-                        true,
-                        user_in_channel,
-                        our_user,
-                        config.file_transfer.enabled,
-                        context_menu::has_user_metadata(user, registry, config),
-                    )
-                }
-                message::Link::Url(_) => context_menu::Entry::url_list(
-                    false, None, None, false, false, false
-                ),
-                message::Link::Channel(server, channel, _) => {
-                    context_menu::Entry::channel_list(
-                        channel_is_open(server, channel),
-                        channel_is_focused(server, channel),
-                    )
-                }
-                _ => vec![],
+                        context_menu::Entry::user_list(
+                            true,
+                            user_in_channel,
+                            our_user,
+                            config.file_transfer.enabled,
+                            context_menu::has_user_metadata(
+                                user, registry, config,
+                            ),
+                            false,
+                        )
+                    }),
+                    Some(|_| {
+                        context_menu::Entry::url_list(
+                            false, None, None, false, false, false,
+                        )
+                    }),
+                    Some(|server, channel| {
+                        context_menu::Entry::channel_list(
+                            channel_is_open(server, channel),
+                            channel_is_focused(server, channel),
+                        )
+                    }),
+                )
             },
             move |link, entry, length| {
                 let context = Context::link(

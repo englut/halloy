@@ -274,14 +274,18 @@ fn channel_list_view<'a>(
             ])
             .on_link(Message::Link)
             .context_menu(
-                move |link| match link {
-                    message::Link::Channel(server, channel, _) => {
-                        context_menu::Entry::channel_list(
-                            channel_is_open(server, channel),
-                            channel_is_focused(server, channel),
-                        )
-                    }
-                    _ => vec![],
+                move |link| {
+                    context_menu::Entry::link_list(
+                        link,
+                        Option::<fn(&User) -> Vec<context_menu::Entry>>::None,
+                        Option::<fn(&str) -> Vec<context_menu::Entry>>::None,
+                        Some(|server, channel| {
+                            context_menu::Entry::channel_list(
+                                channel_is_open(server, channel),
+                                channel_is_focused(server, channel),
+                            )
+                        }),
+                    )
                 },
                 move |link, entry, length| {
                     entry
@@ -324,17 +328,22 @@ fn channel_list_view<'a>(
                     theme::selectable_text::topic,
                     theme::font_style::topic,
                     Option::<fn(Color) -> Color>::None,
-                    move |link| match link {
-                        message::Link::Url(_) => context_menu::Entry::url_list(
-                            false, None, None, false, false, false,
-                        ),
-                        message::Link::Channel(server, channel, _) => {
-                            context_menu::Entry::channel_list(
-                                channel_is_open(server, channel),
-                                channel_is_focused(server, channel),
-                            )
-                        }
-                        _ => vec![],
+                    move |link| {
+                        context_menu::Entry::link_list(
+                            link,
+                            Option::<fn(&User) -> Vec<context_menu::Entry>>::None,
+                            Some(|_| {
+                                context_menu::Entry::url_list(
+                                    false, None, None, false, false, false,
+                                )
+                            }),
+                            Some(|server, channel| {
+                                context_menu::Entry::channel_list(
+                                    channel_is_open(server, channel),
+                                    channel_is_focused(server, channel),
+                                )
+                            }),
+                        )
                     },
                     move |link, entry, length| {
                         entry

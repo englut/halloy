@@ -253,7 +253,7 @@ pub fn view<'a>(
                             .map(scroll_view::Message::ContextMenu)
                         };
 
-                        let rerouted_private = message.is_rerouted();
+                        let rerouted_message = message.is_rerouted();
 
                         let content = message_content(
                             &message.content,
@@ -266,7 +266,7 @@ pub fn view<'a>(
                             scroll_view::Message::Link,
                             None,
                             move |theme| {
-                                if rerouted_private {
+                                if rerouted_message {
                                     theme::selectable_text::tertiary(theme)
                                 } else {
                                     theme::selectable_text::default(theme)
