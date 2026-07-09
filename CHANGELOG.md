@@ -38,6 +38,8 @@ Fixed:
 - Reject overlong lines from the server connection instead of buffering them without bound
 - Do not panic when a server-supplied METADATA retry-after value would overflow the retry timer
 - Stop busy-looping on CPU when a DCC file-transfer peer closes its connection early
+- Only play one sound at a time (if two sounds would overlap, then the second sound is skipped)
+- Allow sound files to be symbolic links
 
 Changed:
 
