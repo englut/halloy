@@ -18,6 +18,7 @@ use data::user::{ChannelUsers, Nick};
 use data::{Config, User, client, command, message, metadata, shortcut};
 use iced::advanced::widget::Tree;
 use iced::advanced::{Clipboard, Layout, Shell, mouse};
+use iced::keyboard::{Key, key};
 use iced::widget::text::{Shaping, Wrapping};
 use iced::widget::{
     self, Space, button, center, column, container, mouse_area, operation, row,
@@ -655,7 +656,13 @@ fn reply_bar<'a>(
                         theme::button::secondary(theme, status, false)
                     })
                     .padding(5),
-                Some("Remove reply"),
+                Some(format!(
+                    "Remove reply ({})",
+                    shortcut::KeyBind::from((
+                        Key::Named(key::Named::Escape),
+                        keyboard::Modifiers::default()
+                    ))
+                )),
                 widget::tooltip::Position::Top,
                 theme,
             )

@@ -77,8 +77,9 @@ impl Toast {
 
         match notification_action {
             NotificationAction::ActivateApplication => {
+                notification.action("default", "Open Halloy");
                 if has_buffer_context {
-                    notification.action("open_or_focus_buffer", "Open Buffer");
+                    notification.action("open_buffer", "Open Buffer");
                 }
             }
             NotificationAction::OpenBuffer => {
@@ -92,7 +93,10 @@ impl Toast {
     }
 
     #[cfg(target_os = "linux")]
-    pub async fn show_and_wait_for_response(self) -> Option<Action> {
+    pub async fn show_and_wait_for_response(
+        self,
+        default_action: NotificationAction,
+    ) -> Option<Action> {
         // When image_data is set, Notification::show/Notification::show_async
         // will attempt to start a tokio runtime and panic.  This is a
         // workaround for that behavior.
@@ -106,7 +110,11 @@ impl Toast {
         {
             handle
                 .wait_for_action_async(|response: &NotificationResponse| {
-                    Toast::handle_response(response, &mut action);
+                    Toast::handle_response(
+                        response,
+                        default_action,
+                        &mut action,
+                    );
                 })
                 .await;
         }
@@ -115,7 +123,10 @@ impl Toast {
     }
 
     #[cfg(not(target_os = "linux"))]
-    pub async fn show_and_wait_for_response(self) -> Option<Action> {
+    pub async fn show_and_wait_for_response(
+        self,
+        default_action: NotificationAction,
+    ) -> Option<Action> {
         let mut action = None;
 
         // Notification::show_async and
@@ -125,7 +136,7 @@ impl Toast {
             .show()
             .ok()?
             .wait_for_response(|response: &NotificationResponse| {
-                Toast::handle_response(response, &mut action);
+                Toast::handle_response(response, default_action, &mut action);
             })
             .ok()?;
 
@@ -134,16 +145,22 @@ impl Toast {
 
     fn handle_response(
         response: &NotificationResponse,
+        default_action: NotificationAction,
         action: &mut Option<Action>,
     ) {
         match response {
-            NotificationResponse::Default => {
-                *action = Some(Action::OpenOrFocusBuffer);
-            }
+            NotificationResponse::Default => match default_action {
+                NotificationAction::ActivateApplication => {
+                    *action = Some(Action::ActivateApplication);
+                }
+                NotificationAction::OpenBuffer => {
+                    *action = Some(Action::OpenBuffer);
+                }
+            },
             NotificationResponse::Action(response_action)
-                if response_action == "open_or_focus_buffer" =>
+                if response_action == "open_buffer" =>
             {
-                *action = Some(Action::OpenOrFocusBuffer);
+                *action = Some(Action::OpenBuffer);
             }
             NotificationResponse::Action(_)
             | NotificationResponse::Reply(_)
@@ -156,6 +173,7 @@ impl Toast {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Action {
-    OpenOrFocusBuffer,
+    ActivateApplication,
+    OpenBuffer,
     Dismiss,
 }
