@@ -5,12 +5,12 @@ use std::thread;
 use data::audio::Sound;
 use rodio::{Decoder, DeviceSinkBuilder, Player};
 
-pub fn play(sound: Sound) {
+pub fn play(sound: Sound) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         if let Err(e) = _play(sound) {
             log::error!("Failed to play sound: {e}");
         }
-    });
+    })
 }
 
 fn _play(sound: Sound) -> Result<(), PlayError> {

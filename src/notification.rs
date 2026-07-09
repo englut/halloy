@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::thread;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use data::audio::Sound;
@@ -88,6 +89,7 @@ pub struct Notifications {
     recent_notifications: HashMap<NotificationDelayKey, DateTime<Utc>>,
     sounds: HashMap<String, Sound>,
     sender: mpsc::Sender<Event>,
+    audio: Option<thread::JoinHandle<()>>,
 }
 
 impl Notifications {
@@ -101,6 +103,7 @@ impl Notifications {
                 recent_notifications: HashMap::new(),
                 sounds,
                 sender,
+                audio: None,
             },
             Task::stream(ReceiverStream::new(receiver)),
         )
@@ -576,8 +579,12 @@ impl Notifications {
         if let Some(sound) = sound_name
             .or(config.sound.as_deref())
             .and_then(|sound_name| self.sounds.get(sound_name))
+            && self
+                .audio
+                .as_ref()
+                .is_none_or(thread::JoinHandle::is_finished)
         {
-            audio::play(sound.clone());
+            self.audio = Some(audio::play(sound.clone()));
         }
     }
 }

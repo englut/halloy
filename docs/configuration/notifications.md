@@ -61,7 +61,7 @@ The following table shows all available built-in sounds
 
 Notification sound. Supports both built-in sounds, and external sound files
 (`mp3`, `ogg`, `flac` or `wav` placed inside the `sounds` folder within the
-configuration directory).
+[configuration directory](/configuration#directory)).
 
 ```toml
 # Type: string

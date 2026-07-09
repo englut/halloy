@@ -1,6 +1,6 @@
 # Custom themes
 
-To create a custom theme for Halloy, simply place a theme file (with a `.toml` extension) inside the `themes` folder within the configuration directory.
+To create a custom theme for Halloy, simply place a theme file (with a `.toml` extension) inside the `themes` folder within the [configuration directory](/configuration#directory).
 
 ```toml
 # Consider we have a theme called "foobar.toml" inside the themes folder.
