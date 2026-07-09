@@ -212,7 +212,7 @@ scroller_width = 5
 
 ## `unread_indicator`
 
-Unread buffer indicator style.
+Unread message in buffer indicator style.
 
 ### `title`
 
@@ -240,24 +240,9 @@ Changes the icon which appears when unread messages are present. To disable use 
 icon = "dot"
 ```
 
-### `highlight_icon`
-
-Changes the icon which appears when unread highlight messages are present. To disable use `"none"`.
-
-```toml
-# Type: string
-# Values: "dot", "circle-empty", "dot-circled", "certificate", "asterisk", "speaker", "lightbulb", "star", "none"
-# Default: "circle-empty"
-
-[sidebar.unread_indicator]
-highlight_icon = "circle-empty"
-```
-
 ### `icon_size`
 
-Changes the unread icon size.
-
-Note: If set larger than the line height of the specified [font](/configuration/font) then the icon will not render.
+Changes the unread message icon size.
 
 ```toml
 # Type: integer
@@ -268,24 +253,9 @@ Note: If set larger than the line height of the specified [font](/configuration/
 icon_size = 6
 ```
 
-### `highlight_icon_size`
-
-Changes the highlight unread icon size.
-
-Note: If set larger than the line height of the specified [font](/configuration/font) then the icon will not render.
-
-```toml
-# Type: integer
-# Values: any positive integer"
-# Default: 6
-
-[sidebar.unread_indicator]
-highlight_icon_size = 6
-```
-
 ### `show_on_open_buffers`
 
-Show unread/highlight indicators on buffers that have an open pane.
+Show unread message indicators on buffers that have an open pane.
 
 ```toml
 # Type: boolean
@@ -299,9 +269,9 @@ show_on_open_buffers = false
 
 ### `query_as_highlight`
 
-Treat unread query (direct message) buffers as highlights for sidebar styling.
-When enabled, unread query buffers styled as highlights follow
-`highlight_exclude` / `highlight_include`, not `exclude` / `include`.
+Treat unread messages in query (direct message) buffers as highlights for
+sidebar styling. When enabled, the resulting indicator for messages will be
+controlled by [`sidebar.highlight_indicator`](#highlight-indicator) settings.
 
 ```toml
 # Type: boolean
@@ -317,10 +287,11 @@ query_as_highlight = true
 [Exclusion conditions](/configuration/conditions.md) for which unread indicators
 won't be shown. Inclusion conditions will take precedence over exclusion
 conditions. You can also exclude all conditions by setting to `"all"` or `"*"`.
-Unlike earlier versions, `exclude` does not suppress highlight indicators.
-Highlight indicators still appear for excluded buffers unless `highlight_exclude`
-is also set. To hide both unread and highlight indicators for the same buffers,
-set the same conditions on `exclude` and `highlight_exclude`.
+Does not suppress unread highlight indicators; use
+[`highlight_indicator.exclude`](#exclude-1) to suppress unread highlight
+indicators. To hide both unread message and highlight indicators for the same
+buffers, set the same conditions on `unread_indicator.exclude` and
+`highlight_indicator.exclude`.
 
 ```toml
 # Type: inclusion/exclusion conditions
@@ -348,37 +319,96 @@ exclude = "*"
 include = { channels = ["#halloy"] }
 ```
 
-### `highlight_exclude`
+## `highlight_indicator`
 
-[Exclusion conditions](/configuration/conditions.md) for which highlight
-indicators won't be shown. Inclusion conditions will take precedence over
-exclusion conditions. You can also exclude all conditions by setting to `"all"`
-or `"*"`.
+Unread highlight in buffer indicator style.
+
+### `title`
+
+Changes buffer title color when unread highlights are present
 
 ```toml
-# Type: inclusion/exclusion conditions
-# Values: channel, user, & server inclusion/exclusion conditions
-# Default: not set
+# Type: boolean
+# Values: true, false
+# Default: false
 
-[sidebar.unread_indicator]
-highlight_exclude = { channels = ["#noisy-channel"] }
+[sidebar.highlight_indicator]
+title = false
 ```
 
-### `highlight_include`
+### `icon`
 
-[Inclusion conditions](/configuration/conditions.md) for which highlight
-indicators will be shown. Highlight indicators are enabled in all conditions
-unless explicitly excluded, so this setting is only relevant when combined with
-the `highlight_exclude` setting.
+Changes the icon which appears when unread highlights are present. To disable use `"none"`.
+
+```toml
+# Type: string
+# Values: "dot", "circle-empty", "dot-circled", "certificate", "asterisk", "speaker", "lightbulb", "star", "none"
+# Default: "dot"
+
+[sidebar.highlight_indicator]
+icon = "dot"
+```
+
+### `icon_size`
+
+Changes the unread highlight icon size.
+
+```toml
+# Type: integer
+# Values: any positive integer"
+# Default: 6
+
+[sidebar.highlight_indicator]
+icon_size = 6
+```
+
+### `show_on_open_buffers`
+
+Show unread/highlight indicators on buffers that have an open pane.
+
+```toml
+# Type: boolean
+# Values: true, false
+# Default: true
+
+[sidebar.highlight_indicator]
+show_on_open_buffers = false
+```
+
+### `exclude`
+
+[Exclusion conditions](/configuration/conditions.md) for which unread indicators
+won't be shown. Inclusion conditions will take precedence over exclusion
+conditions. You can also exclude all conditions by setting to `"all"` or `"*"`.
+Does not suppress unread message indicators; use
+[`unread_indicator.exclude`](#exclude) to suppress unread message indicators. To
+hide both unread message and highlight indicators for the same buffers, set the
+same conditions on `unread_indicator.exclude` and `highlight_indicator.exclude`.
 
 ```toml
 # Type: inclusion/exclusion conditions
 # Values: channel, user, & server inclusion/exclusion conditions
 # Default: not set
 
-[sidebar.unread_indicator]
-highlight_exclude = "*"
-highlight_include = { channels = ["#halloy"] }
+[sidebar.highlight_indicator]
+exclude = { channels = ["#noisy-channel"] }
+```
+
+### `include`
+
+[Inclusion conditions](/configuration/conditions.md) for which unread indicators
+will be shown. Unread indicators are enabled in all conditions unless explicitly
+excluded, so this setting is only relevant when combined with the `exclude`
+setting.
+
+```toml
+# Type: inclusion/exclusion conditions
+# Values: channel, user, & server inclusion/exclusion conditions
+# Default: not set
+
+[sidebar.highlight_indicator]
+exclude = "*"
+include = { channels = ["#halloy"] }
 ```
 
 ## `user_menu`

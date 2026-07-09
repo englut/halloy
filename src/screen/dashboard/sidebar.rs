@@ -961,13 +961,14 @@ fn upstream_buffer_button<'a>(
         false
     };
 
-    let has_highlight = if config.sidebar.unread_indicator.show_on_open_buffers
-        || !is_visible
-    {
-        history.has_highlight(&kind)
-    } else {
-        false
-    };
+    let has_highlight =
+        if config.sidebar.highlight_indicator.show_on_open_buffers
+            || !is_visible
+        {
+            history.has_highlight(&kind)
+        } else {
+            false
+        };
 
     let is_focused = panes.iter().find_map(|(window_id, pane, state)| {
         (Focus {
@@ -979,13 +980,13 @@ fn upstream_buffer_button<'a>(
     });
 
     let should_indicate_unread =
-        config.sidebar.unread_indicator.should_indicate_unread(
+        config.sidebar.unread_indicator.should_indicate(
             buffer.target().as_ref(),
             buffer.server(),
             casemapping,
         );
     let should_indicate_highlight =
-        config.sidebar.unread_indicator.should_indicate_highlight(
+        config.sidebar.highlight_indicator.should_indicate(
             buffer.target().as_ref(),
             buffer.server(),
             casemapping,
@@ -997,19 +998,19 @@ fn upstream_buffer_button<'a>(
             && config.sidebar.unread_indicator.query_as_highlight);
 
     let show_highlight_icon = has_highlight
-        && config.sidebar.unread_indicator.has_unread_highlight_icon()
+        && config.sidebar.highlight_indicator.has_icon()
         && should_indicate_highlight;
     let show_unread_icon = has_unread
-        && config.sidebar.unread_indicator.has_unread_icon()
+        && config.sidebar.unread_indicator.has_icon()
         && should_indicate_unread;
     let show_unread_title = has_unread
         && config.sidebar.unread_indicator.title
         && should_indicate_unread;
-    let show_highlight_unread_title = has_highlight
-        && config.sidebar.unread_indicator.title
+    let show_highlight_title = has_highlight
+        && config.sidebar.highlight_indicator.title
         && should_indicate_highlight;
 
-    let buffer_title_style = if show_highlight_unread_title {
+    let buffer_title_style = if show_highlight_title {
         theme::text::highlight_indicator
     } else if show_unread_title {
         theme::text::unread_indicator
@@ -1057,7 +1058,7 @@ fn upstream_buffer_button<'a>(
         ))
     } else if show_highlight_icon
         && let Some(highlight_icon) =
-            icon::from_icon(config.sidebar.unread_indicator.highlight_icon)
+            icon::from_icon(config.sidebar.highlight_indicator.icon)
     {
         Some((
             highlight_icon.style(theme::text::highlight_indicator),
@@ -1437,7 +1438,7 @@ fn internal_buffer_button<'a>(
 
     let (has_unread, can_mark_as_read) = match buffer {
         buffer::Internal::Highlights
-            if (config.sidebar.unread_indicator.show_on_open_buffers
+            if (config.sidebar.highlight_indicator.show_on_open_buffers
                 || open.is_none()) =>
         {
             (
@@ -1473,9 +1474,9 @@ fn internal_buffer_button<'a>(
         }
         buffer::Internal::Highlights => {
             let badge = if has_unread
-                && let Some(highlight_icon) = icon::from_icon(
-                    config.sidebar.unread_indicator.highlight_icon,
-                ) {
+                && let Some(highlight_icon) =
+                    icon::from_icon(config.sidebar.highlight_indicator.icon)
+            {
                 Some((
                     highlight_icon.style(theme::text::highlight_indicator),
                     dimensions.highlight_indicator_size,
@@ -1807,19 +1808,18 @@ impl From<&config::sidebar::Sidebar> for Dimensions {
                 config::sidebar::PrimaryIcon::Hidden => (0, 0, 0),
             };
 
-        let unread_indicator_size = if config.unread_indicator.has_unread_icon()
-        {
+        let unread_indicator_size = if config.unread_indicator.has_icon() {
             config.unread_indicator.icon_size
         } else {
             0
         };
 
-        let highlight_indicator_size =
-            if config.unread_indicator.has_unread_highlight_icon() {
-                config.unread_indicator.highlight_icon_size
-            } else {
-                0
-            };
+        let highlight_indicator_size = if config.highlight_indicator.has_icon()
+        {
+            config.highlight_indicator.icon_size
+        } else {
+            0
+        };
 
         Self {
             icon_size,

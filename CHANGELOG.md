@@ -16,8 +16,8 @@ Added:
 - Explicit portable mode
 - Theme editor can be closed via Escape
 - `actions.buffer.click_channel_discovery` to configure click behavior for channel names in the channel discovery pane (default: `"new-pane"`)
-- `sidebar.unread_indicator.exclude` no longer suppresses highlight indicators
-- New `sidebar.unread_indicator.highlight_exclude` / `sidebar.unread_indicator.highlight_include` settings for independent highlight control
+- `sidebar.unread_indicator.exclude` & `sidebar.unread_indicator.include` no longer controls highlight indicators
+- New `sidebar.highlight_indicator.title`, `sidebar.highlight_indicator.show_on_open_buffers`, `sidebar.highlight_indicator.exclude`, and `sidebar.highlight_indicator.include` settings for independent highlight control
 
 Fixed:
 
@@ -45,6 +45,7 @@ Changed:
 
 - `change_mode` server messages are categorized as `actions` (i.e. `actions_dimmed` controls whether they are dimmed by default)
 - Renamed `sidebar.server_icon` → `sidebar.primary_icon` and `sidebar.server_font_size` → `sidebar.primary_font_size` since the settings now apply to both servers and internal buffers
+- Renamed `sidebar.unread_indicator.highlight_icon` → `sidebar.highlight_indicator.icon` and `sidebar.unread_indicator.highlight_icon_size` → `sidebar.highlight_indicator.icon_size`
 - Renamed `sidebar.font_size` → `sidebar.secondary_font_size` to reflect its relationship to `sidebar.primary_font_size`
 - Renamed `actions.buffer.local` → `actions.buffer.open_internal` to match naming convention used elsewhere
 - Renamed `actions.buffer.click_username` to `actions.buffer.click_nickname` for more consistent terminology
