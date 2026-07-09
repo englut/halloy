@@ -19,7 +19,7 @@ pub fn message_content<'a, M: 'a + std::clone::Clone>(
     casemapping: isupport::CaseMap,
     theme: &'a Theme,
     on_link: impl Fn(message::Link) -> M + 'a,
-    default_link: Option<message::Link>,
+    default_link: Option<(message::Link, bool)>,
     style: impl Fn(&Theme) -> selectable_text::Style + 'a,
     font_style: impl Fn(&Theme) -> Option<FontStyle>,
     color_transformation: Option<impl Fn(Color) -> Color>,
@@ -54,7 +54,7 @@ pub fn with_context<'a, T: Copy + 'a, M: 'a + std::clone::Clone>(
     casemapping: isupport::CaseMap,
     theme: &'a Theme,
     on_link: impl Fn(message::Link) -> M + 'a,
-    default_link: Option<message::Link>,
+    default_link: Option<(message::Link, bool)>,
     style: impl Fn(&Theme) -> selectable_text::Style + 'a,
     font_style: impl Fn(&Theme) -> Option<FontStyle>,
     color_transformation: Option<impl Fn(Color) -> Color>,
@@ -92,7 +92,7 @@ fn message_content_impl<'a, T: Copy + 'a, M: 'a + std::clone::Clone>(
     casemapping: isupport::CaseMap,
     theme: &'a Theme,
     on_link: impl Fn(message::Link) -> M + 'a,
-    default_link: Option<message::Link>,
+    default_link: Option<(message::Link, bool)>,
     style: impl Fn(&Theme) -> selectable_text::Style + 'a,
     font_style: impl Fn(&Theme) -> Option<FontStyle>,
     color_transformation: Option<impl Fn(Color) -> Color>,
@@ -148,7 +148,7 @@ fn message_content_impl<'a, T: Copy + 'a, M: 'a + std::clone::Clone>(
                     .style(style)
             };
 
-            if let Some(default_link) = default_link {
+            if let Some((default_link, _)) = default_link {
                 button(selectable_text)
                     .style(theme::button::bare)
                     .padding(0)
@@ -370,10 +370,17 @@ fn message_content_impl<'a, T: Copy + 'a, M: 'a + std::clone::Clone>(
                         };
 
                         Some(
-                            if span.link.is_none()
-                                && let Some(default_link) = &default_link
+                            if let Some((default_link, overwrite_link)) =
+                                &default_link
+                                && (span.link.is_none() || *overwrite_link)
                             {
-                                span.link(default_link.clone())
+                                let mut link = default_link.clone();
+
+                                if let Some(span_link) = span.link.as_ref() {
+                                    link.set_context(span_link);
+                                }
+
+                                span.link(link)
                             } else {
                                 span
                             },

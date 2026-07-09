@@ -122,6 +122,19 @@ Action when joining a channel via `/join` command. `"new-pane"` opens a new pane
 join_channel = "replace-pane"
 ```
 
+### `only_contract_expanded_message`
+
+All actions on an expanded message will be disabled in favor of closing the message.  In other words, if set to `true` then clicking anywhere on an expanded message will contract it.
+
+```toml
+# Type: bool
+# Values: true, false
+# Default: true
+
+[actions.buffer]
+only_contract_expanded_message = false
+```
+
 ## `nicklist`
 
 How nicklist actions should be enacted.

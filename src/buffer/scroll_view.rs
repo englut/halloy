@@ -1185,7 +1185,11 @@ impl State {
                     );
                 }
             }
-            Message::Link(message::Link::ExpandMessage(server_time, hash)) => {
+            Message::Link(message::Link::ExpandMessage(
+                server_time,
+                hash,
+                _,
+            )) => {
                 return (
                     Task::none(),
                     Some(Event::ExpandMessage(server_time, hash)),
@@ -1194,6 +1198,7 @@ impl State {
             Message::Link(message::Link::ContractMessage(
                 server_time,
                 hash,
+                _,
             )) => {
                 return (
                     Task::none(),

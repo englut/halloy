@@ -51,6 +51,7 @@ Changed:
 - Renamed `actions.buffer.local` → `actions.buffer.open_internal` to match naming convention used elsewhere
 - Renamed `actions.buffer.click_username` to `actions.buffer.click_nickname` for more consistent terminology
 - Moved functionality from `buffer.nickname.click` → `actions.buffer.click_nickname` and `buffer.channel.nicklist.click` → `actions.nicklist.click_nickname`
+- Clicking on a message expanded out of a condensed message will always contract it (configurable via `actions.only_contract_expanded_message`)
 - Windows release artifacts are signed using SignPath
 - Set window icon also on Linux for X11
 

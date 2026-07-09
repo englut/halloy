@@ -146,36 +146,6 @@ impl<'a> ChannelQueryLayout<'a> {
         Some(message.hidden_urls.contains(&parsed))
     }
 
-    fn url_entries(
-        &self,
-        message: &data::Message,
-        link: &message::Link,
-    ) -> Vec<context_menu::Entry> {
-        let can_send_replies = self.can_send_replies && message.id.is_some();
-        match link {
-            message::Link::Url(url) => context_menu::Entry::url_list(
-                message.redaction.is_some(),
-                message.redaction_expanded(&self.config.buffer.redaction),
-                self.preview_hidden_for_url(message, url),
-                self.can_send_reactions,
-                self.can_redact_message(message),
-                can_send_replies,
-            ),
-            _ => {
-                let mut entries = vec![];
-                if can_send_replies || self.can_send_reactions {
-                    if can_send_replies {
-                        entries.push(context_menu::Entry::Reply);
-                    }
-                    if self.can_send_reactions {
-                        entries.push(context_menu::Entry::AddReaction);
-                    }
-                }
-                entries
-            }
-        }
-    }
-
     fn can_redact_message(&self, message: &data::Message) -> bool {
         // Gate on message-redaction capability first.
         if !self.can_redact {
@@ -567,13 +537,13 @@ impl<'a> ChannelQueryLayout<'a> {
 
         let user_in_channel =
             self.target.users().and_then(|users| users.resolve(user));
-        let rerouted_private = message.is_rerouted();
+        let rerouted_message = message.is_rerouted();
         let is_user_away = match self.config.buffer.nickname.shown_status {
             ShownStatus::Current => user_in_channel.unwrap_or(user),
             ShownStatus::Historical => user,
         }
         .is_away();
-        let is_user_offline = if rerouted_private {
+        let is_user_offline = if rerouted_message {
             false
         } else {
             match self.config.buffer.nickname.shown_status {
@@ -583,10 +553,6 @@ impl<'a> ChannelQueryLayout<'a> {
                 ShownStatus::Historical => false,
             }
         };
-        let is_ourself = self
-            .target
-            .our_user()
-            .is_some_and(|our_user| our_user.nickname() == user.nickname());
 
         let user_display = UserDisplay::new(
             user,
@@ -630,8 +596,8 @@ impl<'a> ChannelQueryLayout<'a> {
                     .into();
             }
 
-            if rerouted_private && user_in_channel.is_none() {
-                context_menu::rerouted_private_user(
+            if rerouted_message && user_in_channel.is_none() {
+                context_menu::rerouted_message_user(
                     nick_text,
                     self.server,
                     self.prefix,
@@ -666,7 +632,7 @@ impl<'a> ChannelQueryLayout<'a> {
 
         let message_style = move |message_theme: &Theme| {
             theme::selectable_text::dimmed(
-                if rerouted_private {
+                if rerouted_message {
                     theme::selectable_text::tertiary(message_theme)
                 } else {
                     theme::selectable_text::default(message_theme)
@@ -707,6 +673,7 @@ impl<'a> ChannelQueryLayout<'a> {
                     .on_press(Message::Link(message::Link::ExpandMessage(
                         message.server_time,
                         message.hash,
+                        None,
                     )))
                     .into(),
                     vec![],
@@ -727,40 +694,13 @@ impl<'a> ChannelQueryLayout<'a> {
                             message_style,
                             theme::font_style::primary,
                             color_transformation,
-                            move |link| match link {
-                                message::Link::User(_, _) => {
-                                    if rerouted_private
-                                        && !is_ourself
-                                        && user_in_channel.is_none()
-                                    {
-                                        vec![context_menu::Entry::Whois]
-                                    } else {
-                                        context_menu::Entry::user_list(
-                                            formatter.target.is_channel(),
-                                            user_in_channel,
-                                            formatter.target.our_user(),
-                                            formatter
-                                                .config
-                                                .file_transfer
-                                                .enabled,
-                                            context_menu::has_user_metadata(
-                                                user,
-                                                formatter.registry,
-                                                formatter.config,
-                                            ),
-                                        )
-                                    }
-                                }
-                                message::Link::Url(_) => {
-                                    formatter.url_entries(message, link)
-                                }
-                                message::Link::Channel(server, channel, _) => {
-                                    context_menu::Entry::channel_list(
-                                        channel_is_open(server, channel),
-                                        channel_is_focused(server, channel),
-                                    )
-                                }
-                                _ => vec![],
+                            move |link| {
+                                formatter.link_entries(
+                                    message,
+                                    link,
+                                    channel_is_focused,
+                                    channel_is_open,
+                                )
                             },
                             move |link, entry, length| {
                                 entry
@@ -830,6 +770,7 @@ impl<'a> ChannelQueryLayout<'a> {
         let link = message.expanded.then_some(message::Link::ContractMessage(
             message.server_time,
             message.hash,
+            None,
         ));
 
         let marker_style = move |message_theme: &Theme| {
@@ -860,7 +801,12 @@ impl<'a> ChannelQueryLayout<'a> {
             formatter.casemapping,
             self.theme,
             Message::Link,
-            link,
+            link.map(|link| {
+                (
+                    link,
+                    self.config.actions.buffer.only_contract_expanded_message,
+                )
+            }),
             message_style,
             message_font_style,
             Some(|color: Color| -> Color {
@@ -873,31 +819,13 @@ impl<'a> ChannelQueryLayout<'a> {
                     color
                 }
             }),
-            move |link| match link {
-                message::Link::User(_, user) => {
-                    let user_in_channel =
-                        formatter.target.users().and_then(|u| u.resolve(user));
-
-                    context_menu::Entry::user_list(
-                        formatter.target.is_channel(),
-                        user_in_channel,
-                        formatter.target.our_user(),
-                        formatter.config.file_transfer.enabled,
-                        context_menu::has_user_metadata(
-                            user,
-                            formatter.registry,
-                            formatter.config,
-                        ),
-                    )
-                }
-                message::Link::Url(_) => formatter.url_entries(message, link),
-                message::Link::Channel(server, channel, _) => {
-                    context_menu::Entry::channel_list(
-                        channel_is_open(server, channel),
-                        channel_is_focused(server, channel),
-                    )
-                }
-                _ => vec![],
+            move |link| {
+                formatter.link_entries(
+                    message,
+                    link,
+                    channel_is_focused,
+                    channel_is_open,
+                )
             },
             move |link, entry, length| {
                 entry
@@ -949,8 +877,11 @@ impl<'a> ChannelQueryLayout<'a> {
             theme::font_style::server(message_theme, None)
         };
 
-        let link =
-            message::Link::ExpandMessage(message.server_time, message.hash);
+        let link = message::Link::ExpandMessage(
+            message.server_time,
+            message.hash,
+            None,
+        );
         let moved_link = link.clone();
 
         let range_end_timestamp = if let message::Source::Internal(
@@ -1018,7 +949,7 @@ impl<'a> ChannelQueryLayout<'a> {
             formatter.casemapping,
             self.theme,
             move |_| Message::Link(moved_link.clone()),
-            Some(link),
+            Some((link, true)),
             message_style,
             message_font_style,
             Some(|color: Color| -> Color {
@@ -1031,31 +962,13 @@ impl<'a> ChannelQueryLayout<'a> {
                     color
                 }
             }),
-            move |link| match link {
-                message::Link::User(_, user) => {
-                    let user_in_channel =
-                        formatter.target.users().and_then(|u| u.resolve(user));
-
-                    context_menu::Entry::user_list(
-                        formatter.target.is_channel(),
-                        user_in_channel,
-                        formatter.target.our_user(),
-                        formatter.config.file_transfer.enabled,
-                        context_menu::has_user_metadata(
-                            user,
-                            formatter.registry,
-                            formatter.config,
-                        ),
-                    )
-                }
-                message::Link::Url(_) => formatter.url_entries(message, link),
-                message::Link::Channel(server, channel, _) => {
-                    context_menu::Entry::channel_list(
-                        channel_is_open(server, channel),
-                        channel_is_focused(server, channel),
-                    )
-                }
-                _ => vec![],
+            move |link| {
+                formatter.link_entries(
+                    message,
+                    link,
+                    channel_is_focused,
+                    channel_is_open,
+                )
             },
             move |link, entry, length| {
                 entry
@@ -1083,6 +996,54 @@ impl<'a> ChannelQueryLayout<'a> {
                 self.config.buffer.nickname.alignment,
             ),
             (Source::User(_), Alignment::Top)
+        )
+    }
+
+    fn link_entries<'b>(
+        &'b self,
+        message: &'b data::Message,
+        link: &'b message::Link,
+        channel_is_focused: impl Fn(&Server, &target::Channel) -> bool + Copy + 'b,
+        channel_is_open: impl Fn(&Server, &target::Channel) -> bool + Copy + 'b,
+    ) -> Vec<context_menu::Entry> {
+        context_menu::Entry::link_list(
+            link,
+            Some(|user| {
+                let user_in_channel =
+                    self.target.users().and_then(|users| users.resolve(user));
+
+                context_menu::Entry::user_list(
+                    self.target.is_channel(),
+                    user_in_channel,
+                    self.target.our_user(),
+                    self.config.file_transfer.enabled,
+                    context_menu::has_user_metadata(
+                        user,
+                        self.registry,
+                        self.config,
+                    ),
+                    message.is_rerouted(),
+                )
+            }),
+            Some(|url| {
+                let can_send_replies =
+                    self.can_send_replies && message.id.is_some();
+
+                context_menu::Entry::url_list(
+                    message.redaction.is_some(),
+                    message.redaction_expanded(&self.config.buffer.redaction),
+                    self.preview_hidden_for_url(message, url),
+                    self.can_send_reactions,
+                    self.can_redact_message(message),
+                    can_send_replies,
+                )
+            }),
+            Some(|server, channel| {
+                context_menu::Entry::channel_list(
+                    channel_is_open(server, channel),
+                    channel_is_focused(server, channel),
+                )
+            }),
         )
     }
 
@@ -1332,35 +1293,13 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                     message_style,
                     theme::font_style::action,
                     color_transformation,
-                    move |link| match link {
-                        message::Link::User(_, user) => {
-                            let user_in_channel = formatter
-                                .target
-                                .users()
-                                .and_then(|u| u.resolve(user));
-
-                            context_menu::Entry::user_list(
-                                formatter.target.is_channel(),
-                                user_in_channel,
-                                formatter.target.our_user(),
-                                formatter.config.file_transfer.enabled,
-                                context_menu::has_user_metadata(
-                                    user,
-                                    formatter.registry,
-                                    formatter.config,
-                                ),
-                            )
-                        }
-                        message::Link::Url(_) => {
-                            formatter.url_entries(message, link)
-                        }
-                        message::Link::Channel(server, channel, _) => {
-                            context_menu::Entry::channel_list(
-                                channel_is_open(server, channel),
-                                channel_is_focused(server, channel),
-                            )
-                        }
-                        _ => vec![],
+                    move |link| {
+                        formatter.link_entries(
+                            message,
+                            link,
+                            channel_is_focused,
+                            channel_is_open,
+                        )
                     },
                     move |link, entry, length| {
                         entry
