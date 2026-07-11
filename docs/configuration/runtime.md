@@ -28,6 +28,19 @@ The hardware backend can be configured to request a specific graphics API:
 backend = { hardware = "best" }
 ```
 
+## `power_preference`
+
+Specify a power preference to influence which graphics backend is selected.
+
+```toml
+# Type: string
+# Values: "none", "low-power", "high-performance"
+# Default: "none"
+
+[runtime]
+power_preference = "high-performance"
+```
+
 ## `vsync`
 
 Whether frames synchronizes with your display refresh rate.
