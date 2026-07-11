@@ -4,7 +4,7 @@ no_progress = true
 fallback_extensions = ["md"]
 exclude_path = ["docs/node_modules/**", "docs/.vitepress/**"]
 
-include_fragments = true
+include_fragments = "full"
 
 exclude_all_private = true
 exclude = [ '^http://.*', '^https://.*', '^irc://.*', '^ircs://.*',
