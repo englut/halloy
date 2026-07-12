@@ -7,8 +7,8 @@ use data::{
     Image, Version, buffer, file_transfer, history, isupport, server,
     server_icon, target,
 };
-use iced::Length::Fit;
-use iced::widget::text::{LineHeight, Shaping};
+use iced::Length::Shrink;
+use iced::widget::text::{Ellipsis, LineHeight, Shaping, Wrapping};
 use iced::widget::{
     Column, Row, Scrollable, Space, button, column, container, pane_grid, row,
     rule, scrollable, space, stack,
@@ -774,10 +774,9 @@ impl Sidebar {
             let second_pass = content(Length::Fill);
 
             container(double_pass(first_pass, second_pass))
-                .width(Fit.max(
+                .width(Shrink.max(
                     config.sidebar.max_width.map_or(f32::INFINITY, f32::from),
                 ))
-                .width(Length::Shrink)
                 .padding(padding)
         };
 
@@ -1102,7 +1101,9 @@ fn upstream_buffer_button<'a>(
                         .size(font_size)
                         .style(buffer_title_style)
                         .font_maybe(buffer_title_font.clone())
-                        .shaping(Shaping::Advanced),
+                        .shaping(Shaping::Advanced)
+                        .wrapping(Wrapping::None)
+                        .ellipsis(Ellipsis::End),
                 );
                 content = content.push(Space::new().width(6));
                 content = content.push(
@@ -1111,7 +1112,9 @@ fn upstream_buffer_button<'a>(
                         .size(font_size)
                         .style(theme::text::secondary)
                         .font_maybe(buffer_title_font)
-                        .shaping(Shaping::Advanced),
+                        .shaping(Shaping::Advanced)
+                        .wrapping(Wrapping::None)
+                        .ellipsis(Ellipsis::End),
                 );
             } else {
                 content = content.push(
@@ -1120,7 +1123,9 @@ fn upstream_buffer_button<'a>(
                         .size(font_size)
                         .style(buffer_title_style)
                         .font_maybe(buffer_title_font)
-                        .shaping(Shaping::Advanced),
+                        .shaping(Shaping::Advanced)
+                        .wrapping(Wrapping::None)
+                        .ellipsis(Ellipsis::End),
                 );
             }
         }
@@ -1144,7 +1149,9 @@ fn upstream_buffer_button<'a>(
                     .size_maybe(font_size)
                     .style(buffer_title_style)
                     .font_maybe(buffer_title_font)
-                    .shaping(Shaping::Advanced),
+                    .shaping(Shaping::Advanced)
+                    .wrapping(Wrapping::None)
+                    .ellipsis(Ellipsis::End),
             );
         }
         buffer::Upstream::Query(_, query) => {
@@ -1160,7 +1167,9 @@ fn upstream_buffer_button<'a>(
                     .size_maybe(font_size)
                     .style(buffer_title_style)
                     .font_maybe(buffer_title_font)
-                    .shaping(Shaping::Advanced),
+                    .shaping(Shaping::Advanced)
+                    .wrapping(Wrapping::None)
+                    .ellipsis(Ellipsis::End),
             );
         }
     }
@@ -1530,7 +1539,9 @@ fn internal_buffer_button<'a>(
             )
             .style(theme::text::primary)
             .font_maybe(theme::font_style::primary(theme).map(font::get))
-            .shaping(Shaping::Advanced),
+            .shaping(Shaping::Advanced)
+            .wrapping(Wrapping::None)
+            .ellipsis(Ellipsis::End),
     );
 
     let base =
