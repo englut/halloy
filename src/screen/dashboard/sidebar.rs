@@ -426,7 +426,7 @@ impl Sidebar {
                         Menu::Version => context_button(
                             text("About Halloy"),
                             None,
-                            icon::documentation(),
+                            icon::about(),
                             Message::OpenAbout {
                                 version: version.current.clone(),
                                 commit: data::environment::GIT_HASH
