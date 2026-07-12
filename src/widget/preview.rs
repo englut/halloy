@@ -1,4 +1,5 @@
 use data::{Config, Preview, preview};
+use iced::Length::Fit;
 use iced::widget::{column, container, text};
 use iced::{ContentFit, Padding};
 
@@ -37,7 +38,7 @@ pub fn preview_card_parts<'a, M: 'a>(
                     ),
             )
             .clip(false)
-            .max_height(config.preview.card.description_max_height)
+            .height(Fit.max(config.preview.card.description_max_height))
         })
         .into();
 
@@ -48,7 +49,7 @@ pub fn preview_card_parts<'a, M: 'a>(
             ContentFit::ScaleDown,
         ))
         .padding(Padding::default().top(8))
-        .max_height(config.preview.card.image_max_height)
+        .height(Fit.max(config.preview.card.image_max_height))
         .into(),
     );
 
@@ -68,7 +69,7 @@ pub fn preview_content<'a, M: 'a>(
             container(
                 column![title, description, image]
                     .spacing(8)
-                    .max_width(config.preview.card.max_width),
+                    .width(Fit.max(config.preview.card.max_width)),
             )
             .padding(8)
             .into()
@@ -79,8 +80,8 @@ pub fn preview_content<'a, M: 'a>(
             config.preview.image.round_corners,
             ContentFit::ScaleDown,
         ))
-        .max_width(config.preview.image.max_width)
-        .max_height(config.preview.image.max_height)
+        .width(Fit.max(config.preview.image.max_width))
+        .height(Fit.max(config.preview.image.max_height))
         .into(),
     }
 }

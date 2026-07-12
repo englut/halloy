@@ -2064,7 +2064,6 @@ mod correct_viewport {
                       layout: advanced::Layout<'_>,
                       cursor: advanced::mouse::Cursor,
                       renderer: &Renderer,
-                      clipboard: &mut dyn advanced::Clipboard,
                       shell: &mut advanced::Shell<'_, Message>,
                       viewport: &iced::Rectangle| {
                     let is_redraw = matches!(
@@ -2133,7 +2132,7 @@ mod correct_viewport {
                     }
 
                     let mut messages = vec![];
-                    let mut local_shell = advanced::Shell::new(&mut messages);
+                    let mut local_shell = shell.local(&mut messages);
 
                     inner.as_widget_mut().update(
                         tree,
@@ -2141,7 +2140,6 @@ mod correct_viewport {
                         layout,
                         cursor,
                         renderer,
-                        clipboard,
                         &mut local_shell,
                         viewport,
                     );
@@ -2155,8 +2153,8 @@ mod correct_viewport {
                             iced::window::RedrawRequest::Wait => {}
                         }
 
-                        if local_shell.is_layout_invalid() {
-                            shell.invalidate_layout();
+                        if let Some(diff) = shell.is_layout_invalid() {
+                            shell.invalidate_layout_with(diff);
                         }
 
                         if local_shell.are_widgets_invalid() {

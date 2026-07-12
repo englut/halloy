@@ -194,7 +194,7 @@ impl ThemeEditor {
 
                 return (
                     Task::batch(vec![
-                        clipboard::write(url),
+                        clipboard::write(url).discard(),
                         Task::perform(
                             time::sleep(Duration::from_secs(2)),
                             |()| Message::ClearCopy,

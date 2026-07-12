@@ -1,4 +1,4 @@
-use iced::advanced::{Clipboard, Layout, Shell, widget};
+use iced::advanced::{Layout, Shell, widget};
 pub use iced::keyboard::key::{self, Named, Physical};
 pub use iced::keyboard::{Key, Modifiers};
 use iced::{Event, Rectangle, keyboard, mouse};
@@ -23,7 +23,6 @@ where
                   layout: Layout<'_>,
                   cursor: mouse::Cursor,
                   renderer: &Renderer,
-                  clipboard: &mut dyn Clipboard,
                   shell: &mut Shell<'_, Message>,
                   viewport: &Rectangle| {
                 if let Event::Keyboard(keyboard::Event::KeyPressed {
@@ -40,8 +39,7 @@ where
                 }
 
                 inner.as_widget_mut().update(
-                    tree, event, layout, cursor, renderer, clipboard, shell,
-                    viewport,
+                    tree, event, layout, cursor, renderer, shell, viewport,
                 );
             },
         )

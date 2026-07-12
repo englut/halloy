@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use data::isupport::CaseMap;
 use data::user::{ChannelUsers, Nick, NickRef, User};
 use data::{Config, metadata};
+use iced::Length::Fit;
 use iced::widget::text::LineHeight;
 pub use iced::widget::tooltip::Position;
 use iced::widget::{Space, button, container, row};
@@ -192,7 +193,7 @@ where
                 container(tooltip_content)
                     .style(theme::container::tooltip)
                     .padding(8)
-                    .max_width(300),
+                    .width(Fit.max(300)),
                 Position::Bottom,
             )
             .into()

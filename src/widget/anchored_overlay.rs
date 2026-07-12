@@ -1,5 +1,5 @@
 use iced::advanced::{
-    Clipboard, Layout, Shell, Widget, layout, overlay, renderer, widget,
+    Layout, Shell, Widget, layout, overlay, renderer, widget,
 };
 use iced::{Event, Length, Point, Rectangle, Size, Vector, mouse};
 
@@ -41,10 +41,6 @@ impl<Message> Widget<Message, Theme, Renderer>
         self.base.as_widget().size()
     }
 
-    fn size_hint(&self) -> Size<Length> {
-        self.base.as_widget().size_hint()
-    }
-
     fn layout(
         &mut self,
         tree: &mut widget::Tree,
@@ -79,15 +75,8 @@ impl<Message> Widget<Message, Theme, Renderer>
         );
     }
 
-    fn children(&self) -> Vec<widget::Tree> {
-        vec![
-            widget::Tree::new(&self.base),
-            widget::Tree::new(&self.overlay),
-        ]
-    }
-
-    fn diff(&self, tree: &mut widget::Tree) {
-        tree.diff_children(&[&self.base, &self.overlay]);
+    fn diff(&mut self, tree: &mut widget::Tree) {
+        tree.diff_children(&mut [&mut self.base, &mut self.overlay]);
     }
 
     fn operate(
@@ -112,7 +101,6 @@ impl<Message> Widget<Message, Theme, Renderer>
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -122,7 +110,6 @@ impl<Message> Widget<Message, Theme, Renderer>
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             viewport,
         );
@@ -278,7 +265,6 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer>
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
         let should_capture = matches!(event, Event::Mouse(_) | Event::Touch(_))
@@ -290,7 +276,6 @@ impl<Message> overlay::Overlay<Message, Theme, Renderer>
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             &layout.bounds(),
         );

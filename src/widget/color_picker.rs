@@ -334,7 +334,6 @@ fn picker<'a, Message: 'a>(
                   layout: advanced::Layout<'_>,
                   cursor: advanced::mouse::Cursor,
                   _renderer: &Renderer,
-                  _clipboard: &mut dyn advanced::Clipboard,
                   shell: &mut advanced::Shell<'_, Message>,
                   _viewport: &iced::Rectangle| {
                 let bounds = layout.bounds();

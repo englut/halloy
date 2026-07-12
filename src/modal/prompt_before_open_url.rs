@@ -1,3 +1,4 @@
+use iced::Length::Fit;
 use iced::widget::{button, column, container, space, text};
 use iced::{Length, alignment};
 
@@ -49,7 +50,7 @@ pub fn view<'a>(payload: &'a str, theme: &'a Theme) -> Element<'a, Message> {
         .spacing(20)
         .align_x(iced::Alignment::Center),
     )
-    .max_width(400)
+    .width(Fit.max(400))
     .width(Length::Shrink)
     .style(theme::container::tooltip)
     .padding(25)

@@ -5,8 +5,7 @@ use std::time::Instant;
 
 use iced::advanced::graphics::text::Paragraph;
 use iced::advanced::{
-    Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer, text,
-    widget,
+    Layout, Shell, Widget, layout, mouse, overlay, renderer, text, widget,
 };
 use iced::overlay::menu;
 use iced::widget::text::LineHeight;
@@ -391,10 +390,6 @@ where
         Widget::<TextInputEvent, Theme, Renderer>::size(&self.text_input)
     }
 
-    fn size_hint(&self) -> iced::Size<Length> {
-        Widget::<TextInputEvent, Theme, Renderer>::size_hint(&self.text_input)
-    }
-
     fn layout(
         &mut self,
         _tree: &mut widget::Tree,
@@ -432,7 +427,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -445,7 +439,7 @@ where
 
         // Create a new list of local messages
         let mut local_messages = Vec::new();
-        let mut local_shell = Shell::new(&mut local_messages);
+        let mut local_shell = shell.local(&mut local_messages);
 
         // Provide it to the widget
         let mut tree = self.state.text_input_tree();
@@ -455,7 +449,6 @@ where
             layout,
             cursor,
             renderer,
-            clipboard,
             &mut local_shell,
             viewport,
         );
@@ -661,8 +654,7 @@ where
                     layout,
                     mouse::Cursor::Unavailable,
                     renderer,
-                    clipboard,
-                    &mut Shell::new(&mut vec![]),
+                    &mut shell.local(&mut vec![]),
                     viewport,
                 );
                 state.update_text_input(tree);

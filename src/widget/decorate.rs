@@ -326,7 +326,6 @@ pub trait Update<'a, Message, Theme, Renderer, State> {
         layout: advanced::Layout<'_>,
         cursor: advanced::mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn advanced::Clipboard,
         shell: &mut advanced::Shell<'_, Message>,
         viewport: &iced::Rectangle,
     );
@@ -346,13 +345,12 @@ where
         layout: advanced::Layout<'_>,
         cursor: advanced::mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn advanced::Clipboard,
         shell: &mut advanced::Shell<'_, Message>,
         viewport: &iced::Rectangle,
     ) {
-        inner.as_widget_mut().update(
-            tree, event, layout, cursor, renderer, clipboard, shell, viewport,
-        );
+        inner
+            .as_widget_mut()
+            .update(tree, event, layout, cursor, renderer, shell, viewport);
     }
 }
 
@@ -367,7 +365,6 @@ where
             advanced::Layout<'_>,
             advanced::mouse::Cursor,
             &Renderer,
-            &mut dyn advanced::Clipboard,
             &mut advanced::Shell<'_, Message>,
             &iced::Rectangle,
         ) + 'a,
@@ -381,13 +378,12 @@ where
         layout: advanced::Layout<'_>,
         cursor: advanced::mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn advanced::Clipboard,
         shell: &mut advanced::Shell<'_, Message>,
         viewport: &iced::Rectangle,
     ) {
         self(
-            state, inner, tree, event, layout, cursor, renderer, clipboard,
-            shell, viewport,
+            state, inner, tree, event, layout, cursor, renderer, shell,
+            viewport,
         );
     }
 }
@@ -690,10 +686,6 @@ where
         self.inner.as_widget().size()
     }
 
-    fn size_hint(&self) -> iced::Size<iced::Length> {
-        self.inner.as_widget().size_hint()
-    }
-
     fn tag(&self) -> advanced::widget::tree::Tag {
         struct Marker<State>(State);
         advanced::widget::tree::Tag::of::<Marker<State>>()
@@ -703,12 +695,8 @@ where
         advanced::widget::tree::State::new(State::default())
     }
 
-    fn children(&self) -> Vec<advanced::widget::Tree> {
-        vec![advanced::widget::Tree::new(&self.inner)]
-    }
-
-    fn diff(&self, tree: &mut advanced::widget::Tree) {
-        tree.diff_children(slice::from_ref(&self.inner));
+    fn diff(&mut self, tree: &mut advanced::widget::Tree) {
+        tree.diff_children(slice::from_mut(&mut self.inner));
     }
 
     fn layout(
@@ -733,7 +721,6 @@ where
         layout: advanced::Layout<'_>,
         cursor: advanced::mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn advanced::Clipboard,
         shell: &mut advanced::Shell<'_, Message>,
         viewport: &iced::Rectangle,
     ) {
@@ -745,7 +732,6 @@ where
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             viewport,
         );

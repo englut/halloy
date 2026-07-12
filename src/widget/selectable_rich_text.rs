@@ -7,7 +7,7 @@ use iced::advanced::renderer::Quad;
 use iced::advanced::text::{self, Highlight, Paragraph, Span, Text};
 use iced::advanced::widget::Operation;
 use iced::advanced::widget::tree::{self, Tree};
-use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, renderer};
+use iced::advanced::{Layout, Shell, Widget, layout, renderer};
 use iced::widget::container;
 use iced::widget::text::{LineHeight, Shaping};
 use iced::widget::text_input::Value;
@@ -356,7 +356,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {

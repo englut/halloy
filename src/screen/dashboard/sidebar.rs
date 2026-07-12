@@ -7,6 +7,7 @@ use data::{
     Image, Version, buffer, file_transfer, history, isupport, server,
     server_icon, target,
 };
+use iced::Length::Fit;
 use iced::widget::text::{LineHeight, Shaping};
 use iced::widget::{
     Column, Row, Scrollable, Space, button, column, container, pane_grid, row,
@@ -773,9 +774,9 @@ impl Sidebar {
             let second_pass = content(Length::Fill);
 
             container(double_pass(first_pass, second_pass))
-                .max_width(
+                .width(Fit.max(
                     config.sidebar.max_width.map_or(f32::INFINITY, f32::from),
-                )
+                ))
                 .width(Length::Shrink)
                 .padding(padding)
         };

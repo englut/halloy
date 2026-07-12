@@ -11,6 +11,7 @@ use data::redaction::Redaction;
 use data::server::Server;
 use data::user::{ChannelUsers, NickRef};
 use data::{Config, Preview, User, history, message, metadata, target};
+use iced::Length::Fit;
 use iced::widget::text::LineHeight;
 use iced::widget::{
     Space, button, center, column, container, mouse_area, right, row, space,
@@ -403,7 +404,7 @@ impl<'a> ChannelQueryLayout<'a> {
 
                 let mut card_content = column![title, description]
                     .spacing(8)
-                    .max_width(self.config.preview.card.max_width);
+                    .width(Fit.max(self.config.preview.card.max_width));
 
                 if let Some(image) = image {
                     card_content = card_content.push(
@@ -1949,7 +1950,7 @@ impl<'a> ChannelQueryLayout<'a> {
                         })
                         .into(),
                     data::Preview::Image(..) => {
-                        container(el).max_height(200).into()
+                        container(el).height(Fit.max(200)).into()
                     }
                 };
                 content_col = content_col.push(el);
@@ -1996,7 +1997,7 @@ impl<'a> ChannelQueryLayout<'a> {
         container(outer_col)
             .style(theme::container::hover_preview_tooltip)
             .padding(8)
-            .max_width(self.config.buffer.reply.tooltip.max_width)
+            .width(Fit.max(self.config.buffer.reply.tooltip.max_width))
             .into()
     }
 }

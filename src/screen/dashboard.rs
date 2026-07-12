@@ -28,7 +28,7 @@ use data::{
 };
 use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::{Space, center, column, container, row, stack, text};
-use iced::{Length, Size, Task, Vector, advanced, clipboard, padding};
+use iced::{Length, Size, Task, Vector, clipboard, padding};
 use irc::proto;
 
 use self::command_bar::CommandBar;
@@ -80,10 +80,7 @@ pub struct Dashboard {
 pub enum Message {
     Pane(window::Id, pane::Message),
     Sidebar(sidebar::Message),
-    SelectedText(
-        Vec<(RangeInclusive<f32>, String)>,
-        advanced::clipboard::Kind,
-    ),
+    SelectedText(Vec<(RangeInclusive<f32>, String)>, clipboard::ClipboardKind),
     History(history::manager::Message),
     DashboardSaved(Result<(), data::dashboard::Error>),
     Task(command_bar::Message),
@@ -812,13 +809,14 @@ impl Dashboard {
                 if !contents.is_empty() {
                     return (
                         match clipboard_kind {
-                            advanced::clipboard::Kind::Standard => {
+                            clipboard::ClipboardKind::Standard => {
                                 clipboard::write(contents)
                             }
-                            advanced::clipboard::Kind::Primary => {
+                            clipboard::ClipboardKind::Primary => {
                                 clipboard::write_primary(contents)
                             }
-                        },
+                        }
+                        .discard(),
                         None,
                     );
                 }
@@ -2022,7 +2020,7 @@ impl Dashboard {
                         None
                     }
                     buffer::context_menu::Event::CopyText(text) => {
-                        tasks.push(clipboard::write(text));
+                        tasks.push(clipboard::write(text).discard());
                         None
                     }
                     buffer::context_menu::Event::OpenUrl(url) => {
@@ -2221,7 +2219,7 @@ impl Dashboard {
                         let date_time =
                             config.buffer.format_copy_timestamp(&date_time);
 
-                        tasks.push(clipboard::write(date_time));
+                        tasks.push(clipboard::write(date_time).discard());
 
                         None
                     }
@@ -2804,7 +2802,7 @@ impl Dashboard {
             Copy => selectable_text::selected(|selected_text| {
                 Message::SelectedText(
                     selected_text,
-                    advanced::clipboard::Kind::Standard,
+                    clipboard::ClipboardKind::Standard,
                 )
             }),
             LeftClick => self.refocus_pane(),
@@ -2812,7 +2810,7 @@ impl Dashboard {
                 selectable_text::selected(|selected_text| {
                     Message::SelectedText(
                         selected_text,
-                        advanced::clipboard::Kind::Primary,
+                        clipboard::ClipboardKind::Primary,
                     )
                 })
             }
