@@ -319,10 +319,20 @@ impl Manager {
     }
 
     pub fn open(&mut self, kind: history::Kind) {
-        self.data
+        let history = self
+            .data
             .map
             .entry(kind.clone())
             .or_insert(History::partial(kind.clone()));
+
+        match history {
+            History::Full { .. } => (),
+            History::Partial {
+                show_in_sidebar, ..
+            } => {
+                *show_in_sidebar = true;
+            }
+        }
     }
 
     pub fn exit(
