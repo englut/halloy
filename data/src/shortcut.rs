@@ -111,6 +111,8 @@ pub enum Command {
     ConfigEditorSave,
     OpenConfigEditor,
     OpenConfigFile,
+    ShowMutedBuffers,
+    HideMutedBuffers,
 }
 
 macro_rules! default {
@@ -373,6 +375,8 @@ impl KeyBind {
     #[cfg(not(target_os = "macos"))]
     default!(open_config_editor, ",", CTRL);
     default!(open_config_file);
+    default!(show_muted_buffers);
+    default!(hide_muted_buffers);
 }
 
 impl From<(keyboard::Key, keyboard::Modifiers)> for KeyBind {

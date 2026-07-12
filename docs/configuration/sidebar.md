@@ -167,22 +167,22 @@ Internal buffers shown in the sidebar.
 buffers = ["logs", "highlights"]
 ```
 
-### `show`
+### `mute`
 
-Controls when the internal buffers are shown in the sidebar.
+Controls when the internal buffers are muted (hidden from the sidebar).
 
-- `"always"`: Always show the internal buffers.
-- `"unread"`: Only show the internal buffers when they have unread messages.
+- `"never"`: Never mute the internal buffers (i.e. always internal buffers are visible).
+- `"read"`: Mute internal buffers if they have no unread messages (i.e. only show internal buffers with unread messages).
 
 Note: If a buffer has no concept of "unread messages" (e.g., `file-transfer`), then it will be shown in the sidebar regardless of this setting.
 
 ```toml
 # Type: string
-# Values: "always", "unread"
-# Default: "always"
+# Values: "never", "read"
+# Default: "never"
 
 [sidebar.internal_buffers]
-show = "unread"
+mute = "read"
 ```
 
 ## `channel_name_casing`
