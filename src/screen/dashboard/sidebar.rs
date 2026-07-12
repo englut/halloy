@@ -1437,7 +1437,7 @@ fn internal_buffer_button<'a>(
     let has_history =
         history::Kind::from_buffer(buffer.clone().into()).is_some();
 
-    let (has_unread, can_mark_as_read) = match buffer {
+    let (has_unread, can_mark_as_read, has_highlight) = match buffer {
         buffer::Internal::Highlights
             if (config.sidebar.highlight_indicator.show_on_open_buffers
                 || open.is_none()) =>
@@ -1445,6 +1445,7 @@ fn internal_buffer_button<'a>(
             (
                 history.has_unread(&history::Kind::Highlights),
                 history.can_mark_as_read(&history::Kind::Highlights),
+                history.has_unread(&history::Kind::Highlights),
             )
         }
         buffer::Internal::Logs
@@ -1454,9 +1455,10 @@ fn internal_buffer_button<'a>(
             (
                 history.has_unread(&history::Kind::Logs),
                 history.can_mark_as_read(&history::Kind::Logs),
+                history.has_highlight(&history::Kind::Logs),
             )
         }
-        _ => (false, false),
+        _ => (false, false, false),
     };
 
     let dimensions = Dimensions::from(&config.sidebar);
@@ -1489,12 +1491,13 @@ fn internal_buffer_button<'a>(
             (show_icon.then_some(icon::highlights()), badge)
         }
         buffer::Internal::Logs => {
-            let badge = if has_unread
-                && let Some(unread_icon) =
-                    icon::from_icon(config.sidebar.unread_indicator.icon)
-            {
+            let badge = if has_unread {
                 Some((
-                    unread_icon.style(theme::text::unread_indicator),
+                    icon::log_indicator().style(if has_highlight {
+                        theme::text::error
+                    } else {
+                        theme::text::warning
+                    }),
                     dimensions.unread_indicator_size,
                 ))
             } else {
