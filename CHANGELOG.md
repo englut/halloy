@@ -61,7 +61,7 @@ Changed:
 Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt
-- Bug reports: @luca020400, agent314
+- Bug reports: @luca020400, agent314, flooferland
 
 # 2026.7.2 (2026-06-08)
 
