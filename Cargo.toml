@@ -77,7 +77,6 @@ nucleo-matcher = { workspace = true }
 reqwest = { workspace = true }
 const_format = { workspace = true }
 dirs-next = "2.0.0"
-arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 image = "0.25"
 iced = { workspace = true, features = [
     "wgpu",
@@ -113,7 +112,7 @@ rfd = { version = "0.15.2", default-features = false, features = [
     "xdg-portal",
     "tokio",
 ] }
-uuid = { version = "1.17", features = ["v4"] }
+uuid = { version = "1.23", features = ["v7"] }
 mundy = { version = "0.1.9", default-features = false, features = [
     "color-scheme",
     "tokio",
@@ -168,9 +167,9 @@ embed-resource = "3.0.2"
 windows_exe_info = "0.4"
 
 [patch.crates-io]
-iced = { git = "https://github.com/squidowl/iced", rev = "8fa146e8d20930e639053fcc56dfb17da07c60ba" }
-iced_core = { git = "https://github.com/squidowl/iced", rev = "8fa146e8d20930e639053fcc56dfb17da07c60ba" }
-iced_wgpu = { git = "https://github.com/squidowl/iced", rev = "8fa146e8d20930e639053fcc56dfb17da07c60ba" }
+iced = { git = "https://github.com/squidowl/iced", rev = "81579e865efad8aca9ab2489f282487b536217e7" }
+iced_core = { git = "https://github.com/squidowl/iced", rev = "81579e865efad8aca9ab2489f282487b536217e7" }
+iced_wgpu = { git = "https://github.com/squidowl/iced", rev = "81579e865efad8aca9ab2489f282487b536217e7" }
 
 [profile.packaging]
 inherits = "release"

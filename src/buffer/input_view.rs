@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::convert;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
@@ -103,7 +104,6 @@ pub enum Message {
         lines: VecDeque<input::Parsed>,
     },
     Paste,
-    PasteText,
     SelectAll,
     CopyAll,
     Copy,
@@ -1210,25 +1210,35 @@ impl State {
                     clients.get_filehost(buffer.server()).is_some()
                         && config.filehost.paste();
 
-                let task = Task::perform(
-                    async move { has_filehost.then(try_clipboard_upload).flatten() },
-                    |path| match path {
-                        Some(p) => Message::FilesSelected(p),
-                        None => Message::PasteText,
-                    },
-                );
+                let task = if has_filehost {
+                    Task::batch(vec![
+                        clipboard::read(clipboard::Kind::Image)
+                            .map(handle_clipboard_content),
+                        clipboard::read(clipboard::Kind::Files)
+                            .map(handle_clipboard_content),
+                    ])
+                    .collect()
+                    .then(|maybe_tasks| {
+                        let tasks: Vec<_> =
+                            maybe_tasks.into_iter().flatten().collect();
 
-                Self::close_context_menu(main_window.id, vec![task])
-            }
-            Message::PasteText => {
-                let task = clipboard::read_text().then(|result| match result {
-                    Ok(clipboard) => {
-                        Task::done(Message::Action(text_editor::Action::Edit(
-                            text_editor::Edit::Paste(clipboard),
-                        )))
-                    }
-                    Err(_) => Task::none(),
-                });
+                        if tasks.is_empty() {
+                            clipboard::read(clipboard::Kind::Text).then(
+                                |content| {
+                                    handle_clipboard_content(content)
+                                        .unwrap_or(Task::none())
+                                },
+                            )
+                        } else {
+                            Task::batch(tasks)
+                        }
+                    })
+                } else {
+                    clipboard::read(clipboard::Kind::Text).then(|content| {
+                        handle_clipboard_content(content)
+                            .unwrap_or(Task::none())
+                    })
+                };
 
                 Self::close_context_menu(main_window.id, vec![task])
             }
@@ -2926,67 +2936,36 @@ fn clean_path(path: std::path::PathBuf) -> std::path::PathBuf {
     std::path::PathBuf::from(cleaned)
 }
 
-fn try_clipboard_upload() -> Option<Vec<std::path::PathBuf>> {
-    // macos needs special treatment
-    #[cfg(target_os = "macos")]
-    {
-        let files = macos_clipboard_files();
-        if !files.is_empty() {
-            return Some(files);
+fn handle_clipboard_content(
+    content: Result<Arc<clipboard::Content>, clipboard::Error>,
+) -> Option<Task<Message>> {
+    match Arc::unwrap_or_clone(content.ok()?) {
+        clipboard::Content::Text(text) | clipboard::Content::Html(text) => {
+            Some(Task::done(Message::Action(text_editor::Action::Edit(
+                text_editor::Edit::Paste(text.into()),
+            ))))
         }
+        clipboard::Content::Image(clipboard_image) => {
+            let rgba_image: image::RgbaImage = image::ImageBuffer::from_raw(
+                clipboard_image.size.width,
+                clipboard_image.size.height,
+                clipboard_image.rgba.to_vec(),
+            )?;
+
+            let path = std::env::temp_dir()
+                .join(format!("halloy-paste-{}.png", uuid::Uuid::now_v7()));
+
+            rgba_image.save(&path).ok()?;
+
+            Some(Task::done(Message::FilesSelected(vec![path])))
+        }
+        clipboard::Content::Files(paths) => {
+            let cleaned_paths = paths.into_iter().map(clean_path).collect();
+
+            Some(Task::done(Message::FilesSelected(cleaned_paths)))
+        }
+        _ => None,
     }
-
-    let mut cb = arboard::Clipboard::new().ok()?;
-
-    if let Ok(img) = cb.get().image() {
-        let rgba: image::RgbaImage = image::ImageBuffer::from_raw(
-            img.width as u32,
-            img.height as u32,
-            img.bytes.into_owned(),
-        )?;
-
-        let path = std::env::temp_dir()
-            .join(format!("halloy-paste-{}.png", uuid::Uuid::new_v4()));
-
-        rgba.save(&path).ok()?;
-
-        return Some(vec![path]);
-    } else if let Ok(file_list) = cb.get().file_list() {
-        return Some(file_list.into_iter().map(clean_path).collect());
-    }
-
-    None
-}
-
-#[cfg(target_os = "macos")]
-fn macos_clipboard_files() -> Vec<std::path::PathBuf> {
-    use objc2_app_kit::NSPasteboard;
-    use objc2_foundation::{NSString, NSURL};
-
-    let pasteboard = NSPasteboard::generalPasteboard();
-
-    let Some(items) = pasteboard.pasteboardItems() else {
-        return vec![];
-    };
-
-    let matcher = NSString::from_str("public.file-url");
-
-    items
-        .iter()
-        .filter_map(|item| {
-            // get the file:/// url associated with the NSPasteboardItem item
-            let file_url = item.stringForType(&matcher)?;
-            // clipboard may give a file-reference URL: (e.g. file:///.file/id=…)
-            // if the copied file only exists in the clipboard, so we use filePathURL()
-            // to resolve for the real path
-            let path_str = NSURL::URLWithString(&file_url)?
-                .filePathURL()?
-                .path()? // file:///my/file -> /my/file
-                .to_string();
-
-            Some(std::path::PathBuf::from(path_str))
-        })
-        .collect()
 }
 
 fn upload_ghost(id: u32) -> String {
