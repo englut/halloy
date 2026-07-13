@@ -289,8 +289,11 @@ impl Dashboard {
             .collect();
 
         open_pane_kinds.into_iter().for_each(|kind| {
-            self.history.process_messages(kind, clients, buffer_config);
+            self.history.process_history(kind, clients, buffer_config);
         });
+
+        // TODO: Reprocess unloaded history to determine/update metadata?
+        // Re-visit after history storage is transitioned to SQL.
     }
 
     pub fn renormalize_history(

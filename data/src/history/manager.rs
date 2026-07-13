@@ -173,10 +173,16 @@ impl Manager {
         match message {
             Message::LoadFull(kind, Ok(loaded)) => {
                 let len = loaded.messages.len();
-                self.data.load_full(kind.clone(), loaded);
-                log::debug!("loaded history for {kind}: {len} messages");
 
-                self.process_messages(kind.clone(), clients, buffer_config);
+                self.data.load_full(
+                    kind.clone(),
+                    loaded,
+                    FilterChain::borrow(&self.filters),
+                    clients,
+                    buffer_config,
+                );
+
+                log::debug!("loaded history for {kind}: {len} messages");
 
                 return Some(Event::Loaded(kind));
             }
@@ -1108,9 +1114,32 @@ impl Manager {
     }
 
     // Block, condense, and populate reply-previews for history's messages
-    pub fn process_messages(
+    pub fn process_history(
         &mut self,
         kind: history::Kind,
+        clients: &client::Map,
+        buffer_config: &config::Buffer,
+    ) {
+        if let Some(History::Full { messages, .. }) =
+            self.data.map.get_mut(&kind)
+        {
+            Manager::process_messages(
+                &kind,
+                messages,
+                FilterChain::borrow(&self.filters),
+                clients,
+                buffer_config,
+            );
+        }
+
+        log::debug!("processed messages in {kind}");
+    }
+
+    // Block, condense, and populate reply-previews for history's messages
+    fn process_messages(
+        kind: &history::Kind,
+        messages: &mut [message::Message],
+        filter_chain: FilterChain,
         clients: &client::Map,
         buffer_config: &config::Buffer,
     ) {
@@ -1119,202 +1148,182 @@ impl Manager {
             Condensable(NaiveDate),
             Singular,
         }
+        let mut last_seen = HashMap::<Nick, DateTime<Utc>>::new();
+        let mut last_away = HashMap::<Nick, DateTime<Utc>>::new();
 
-        if let Some(History::Full { messages, .. }) =
-            self.data.map.get_mut(&kind)
-        {
-            let mut last_seen = HashMap::<Nick, DateTime<Utc>>::new();
-            let mut last_away = HashMap::<Nick, DateTime<Utc>>::new();
+        messages.iter_mut().for_each(|message| {
+            message.blocked = false;
 
-            messages.iter_mut().for_each(|message| {
-                message.blocked = false;
+            if message.redaction.is_some()
+                && !buffer_config.redaction.display.is_visible()
+            {
+                message.blocked = true;
+            } else {
+                match message.target.source() {
+                    message::Source::Server(source) => {
+                        let server = if let Some(server) = kind.server() {
+                            Some(server)
+                        } else if let message::Target::Highlights {
+                            server,
+                            ..
+                        } = &message.target
+                        {
+                            Some(server)
+                        } else {
+                            None
+                        };
 
-                if message.redaction.is_some()
-                    && !buffer_config.redaction.display.is_visible()
-                {
-                    message.blocked = true;
-                } else {
-                    match message.target.source() {
-                        message::Source::Server(source) => {
-                            let server = if let Some(server) = kind.server() {
-                                Some(server)
-                            } else if let message::Target::Highlights {
-                                server,
-                                ..
-                            } = &message.target
-                            {
-                                Some(server)
-                            } else {
-                                None
-                            };
+                        let casemapping = clients
+                            .get_maybe_server_casemapping_or_default(server);
 
-                            let casemapping = clients
-                                .get_maybe_server_casemapping_or_default(
+                        // Check if target is included/excluded.
+                        let target_ref = match &message.target {
+                            message::Target::Channel { channel, .. }
+                            | message::Target::Highlights { channel, .. } => {
+                                Some(channel.as_target_ref())
+                            }
+
+                            message::Target::Query { query, .. } => {
+                                Some(query.as_target_ref())
+                            }
+                            message::Target::Server { .. }
+                            | message::Target::Logs { .. } => None,
+                        };
+
+                        let source_kind = source
+                            .as_ref()
+                            .map(message::source::server::Server::kind);
+
+                        if let Some(target_ref) = target_ref
+                            && let Some(server) = server
+                            && !buffer_config
+                                .server_messages
+                                .should_send_message(
+                                    source.as_ref(),
+                                    target_ref,
                                     server,
-                                );
-
-                            // Check if target is included/excluded.
-                            let target_ref = match &message.target {
-                                message::Target::Channel {
-                                    channel, ..
-                                }
-                                | message::Target::Highlights {
-                                    channel, ..
-                                } => Some(channel.as_target_ref()),
-
-                                message::Target::Query { query, .. } => {
-                                    Some(query.as_target_ref())
-                                }
-                                message::Target::Server { .. }
-                                | message::Target::Logs { .. } => None,
+                                    casemapping,
+                                )
+                        {
+                            message.blocked = true;
+                        } else if let Some(seconds) =
+                            buffer_config.server_messages.smart(source_kind)
+                        {
+                            let nick = match source
+                                .as_ref()
+                                .and_then(|source| source.nick())
+                            {
+                                Some(nick) => Some(nick.clone()),
+                                None => message.plain().and_then(|s| {
+                                    s.split(' ').nth(1).map(|nick| {
+                                        Nick::from_str(nick, casemapping)
+                                    })
+                                }),
                             };
 
-                            let source_kind = source
-                                .as_ref()
-                                .map(message::source::server::Server::kind);
+                            if let Some(nick) = nick {
+                                match source_kind {
+                                    Some(message::Kind::Away) => {
+                                        message.blocked = smart_filter_repeat(
+                                            message,
+                                            &seconds,
+                                            last_away.get(&nick),
+                                        );
 
-                            if let Some(target_ref) = target_ref
-                                && let Some(server) = server
-                                && !buffer_config
-                                    .server_messages
-                                    .should_send_message(
-                                        source.as_ref(),
-                                        target_ref,
-                                        server,
-                                        casemapping,
-                                    )
-                            {
-                                message.blocked = true;
-                            } else if let Some(seconds) =
-                                buffer_config.server_messages.smart(source_kind)
-                            {
-                                let nick = match source
-                                    .as_ref()
-                                    .and_then(|source| source.nick())
-                                {
-                                    Some(nick) => Some(nick.clone()),
-                                    None => message.plain().and_then(|s| {
-                                        s.split(' ').nth(1).map(|nick| {
-                                            Nick::from_str(nick, casemapping)
-                                        })
-                                    }),
-                                };
-
-                                if let Some(nick) = nick {
-                                    match source_kind {
-                                        Some(message::Kind::Away) => {
-                                            message.blocked =
-                                                smart_filter_repeat(
-                                                    message,
-                                                    &seconds,
-                                                    last_away.get(&nick),
-                                                );
-
-                                            if !message.blocked {
-                                                last_away.insert(
-                                                    nick.clone(),
-                                                    message.server_time,
-                                                );
-                                            }
+                                        if !message.blocked {
+                                            last_away.insert(
+                                                nick.clone(),
+                                                message.server_time,
+                                            );
                                         }
-                                        _ => {
-                                            message.blocked =
-                                                smart_filter_message(
-                                                    message,
-                                                    &seconds,
-                                                    last_seen.get(&nick),
-                                                );
-                                        }
+                                    }
+                                    _ => {
+                                        message.blocked = smart_filter_message(
+                                            message,
+                                            &seconds,
+                                            last_seen.get(&nick),
+                                        );
                                     }
                                 }
                             }
                         }
-                        crate::message::Source::User(message_user) => {
-                            last_seen.insert(
-                                message_user.nickname().to_owned(),
-                                message.server_time,
+                    }
+                    crate::message::Source::User(message_user) => {
+                        last_seen.insert(
+                            message_user.nickname().to_owned(),
+                            message.server_time,
+                        );
+                    }
+                    message::Source::Internal(
+                        message::source::Internal::Status(status),
+                    ) => {
+                        if !buffer_config.internal_messages.enabled(status) {
+                            message.blocked = true;
+                        } else if let Some(seconds) =
+                            buffer_config.internal_messages.smart(status)
+                        {
+                            message.blocked = smart_filter_internal_message(
+                                message, &seconds,
                             );
                         }
-                        message::Source::Internal(
-                            message::source::Internal::Status(status),
-                        ) => {
-                            if !buffer_config.internal_messages.enabled(status)
-                            {
-                                message.blocked = true;
-                            } else if let Some(seconds) =
-                                buffer_config.internal_messages.smart(status)
-                            {
-                                message.blocked = smart_filter_internal_message(
-                                    message, &seconds,
-                                );
-                            }
-                        }
-                        _ => (),
                     }
+                    _ => (),
                 }
-            });
+            }
+        });
 
-            let chain = FilterChain::borrow(&self.filters);
+        messages.iter_mut().for_each(|message| {
+            if message.blocked {
+                return;
+            }
 
-            messages.iter_mut().for_each(|message| {
-                if message.blocked {
-                    return;
+            filter_chain.filter_message_of_kind(message, kind);
+        });
+
+        messages
+            .iter_mut()
+            .filter(|message| !message.blocked)
+            .chunk_by(|message| {
+                if message.can_condense(&buffer_config.server_messages.condense)
+                {
+                    CondensationKey::Condensable(
+                        message.server_time.with_timezone(&Local).date_naive(),
+                    )
+                } else {
+                    CondensationKey::Singular
                 }
+            })
+            .into_iter()
+            .for_each(|(key, chunk)| match key {
+                CondensationKey::Condensable(_) => {
+                    let mut condensable_messages =
+                        chunk.collect::<Vec<&mut message::Message>>();
 
-                chain.filter_message_of_kind(message, &kind);
-            });
+                    let condensed_message = message::condense(
+                        &condensable_messages
+                            .iter()
+                            .map(|message| &**message)
+                            .collect::<Vec<&message::Message>>(),
+                        &buffer_config.server_messages.condense,
+                    );
 
-            messages
-                .iter_mut()
-                .filter(|message| !message.blocked)
-                .chunk_by(|message| {
-                    if message
-                        .can_condense(&buffer_config.server_messages.condense)
-                    {
-                        CondensationKey::Condensable(
-                            message
-                                .server_time
-                                .with_timezone(&Local)
-                                .date_naive(),
-                        )
-                    } else {
-                        CondensationKey::Singular
-                    }
-                })
-                .into_iter()
-                .for_each(|(key, chunk)| match key {
-                    CondensationKey::Condensable(_) => {
-                        let mut condensable_messages =
-                            chunk.collect::<Vec<&mut message::Message>>();
-
-                        let condensed_message = message::condense(
-                            &condensable_messages
-                                .iter()
-                                .map(|message| &**message)
-                                .collect::<Vec<&message::Message>>(),
-                            &buffer_config.server_messages.condense,
-                        );
-
-                        condensable_messages
-                            .iter_mut()
-                            .for_each(|message| message.condensed = None);
-
-                        if let Some(first_message) =
-                            condensable_messages.first_mut()
-                        {
-                            first_message.condensed = condensed_message;
-                        }
-                    }
-                    CondensationKey::Singular => chunk
-                        .collect::<Vec<&mut message::Message>>()
+                    condensable_messages
                         .iter_mut()
-                        .for_each(|message| message.condensed = None),
-                });
+                        .for_each(|message| message.condensed = None);
 
-            populate_reply_previews(messages);
-        }
+                    if let Some(first_message) =
+                        condensable_messages.first_mut()
+                    {
+                        first_message.condensed = condensed_message;
+                    }
+                }
+                CondensationKey::Singular => chunk
+                    .collect::<Vec<&mut message::Message>>()
+                    .iter_mut()
+                    .for_each(|message| message.condensed = None),
+            });
 
-        log::debug!("processed messages in {kind}");
+        populate_reply_previews(messages);
     }
 
     pub fn renormalize_messages(
@@ -1367,13 +1376,28 @@ struct Data {
 }
 
 impl Data {
-    fn load_full(&mut self, kind: history::Kind, data: history::Loaded) {
+    fn load_full(
+        &mut self,
+        kind: history::Kind,
+        data: history::Loaded,
+        filter_chain: FilterChain,
+        clients: &client::Map,
+        buffer_config: &config::Buffer,
+    ) {
         use std::collections::hash_map;
 
         let history::Loaded {
             mut messages,
             metadata,
         } = data;
+
+        Manager::process_messages(
+            &kind,
+            &mut messages,
+            filter_chain,
+            clients,
+            buffer_config,
+        );
 
         match self.map.entry(kind.clone()) {
             hash_map::Entry::Occupied(mut entry) => match entry.get_mut() {

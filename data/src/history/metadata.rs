@@ -144,6 +144,27 @@ pub async fn save(
     Ok(())
 }
 
+pub async fn update(
+    kind: &Kind,
+    read_marker: Option<ReadMarker>,
+    max_triggers_unread: Option<DateTime<Utc>>,
+    max_triggers_highlight: Option<DateTime<Utc>>,
+    chathistory_references: Option<MessageReferences>,
+) -> Result<(), Error> {
+    let bytes = serde_json::to_vec(&Metadata {
+        read_marker,
+        last_triggers_unread: max_triggers_unread,
+        last_triggers_highlight: max_triggers_highlight,
+        chathistory_references,
+    })?;
+
+    let path = path(kind).await?;
+
+    fs::write(path, &bytes).await?;
+
+    Ok(())
+}
+
 pub async fn update_chathistory_references(
     kind: &Kind,
     chathistory_references: &MessageReferences,

@@ -255,14 +255,9 @@ pub async fn overwrite(
         .await;
     }
 
-    let latest = &messages[messages.len().saturating_sub(MAX_MESSAGES)..];
+    let messages = write_messages(kind, messages).await?;
 
-    let path = path(kind).await?;
-    let compressed = compression::compress(&latest)?;
-
-    fs::write(path, &compressed).await?;
-
-    metadata::save(kind, latest, read_marker, chathistory_references).await?;
+    metadata::save(kind, messages, read_marker, chathistory_references).await?;
 
     Ok(())
 }
@@ -272,6 +267,8 @@ pub async fn append(
     seed: Option<Seed>,
     pending_messages: Vec<(Message, Option<LabeledResponseContext>)>,
     read_marker: Option<ReadMarker>,
+    max_triggers_unread: Option<DateTime<Utc>>,
+    max_triggers_highlight: Option<DateTime<Utc>>,
     chathistory_references: Option<MessageReferences>,
     pending_reactions: HashMap<message::Id, reaction::Pending>,
     pending_redactions: HashMap<message::Id, redaction::Pending>,
@@ -356,9 +353,37 @@ pub async fn append(
         },
     );
 
-    overwrite(kind, &all_messages, read_marker, chathistory_references)
-        .await
-        .map(|()| echo_events)
+    let _ = write_messages(kind, &all_messages).await?;
+
+    // Update metadata directly, without referencing all messages, since all
+    // messages have not been processed (and so do not have their blocked state
+    // set → blocked messages may incorrectly update metadata).
+
+    metadata::update(
+        kind,
+        read_marker,
+        max_triggers_unread,
+        max_triggers_highlight,
+        chathistory_references,
+    )
+    .await?;
+
+    Ok(echo_events)
+}
+
+async fn write_messages<'a>(
+    kind: &Kind,
+    messages: &'a [Message],
+) -> Result<&'a [Message], Error> {
+    let latest_messages =
+        &messages[messages.len().saturating_sub(MAX_MESSAGES)..];
+
+    let path = path(kind).await?;
+    let compressed = compression::compress(&latest_messages)?;
+
+    fs::write(path, &compressed).await?;
+
+    Ok(latest_messages)
 }
 
 pub async fn delete(kind: &Kind) -> Result<(), Error> {
@@ -793,6 +818,8 @@ impl History {
                 pending_messages,
                 last_updated_at,
                 read_marker,
+                max_triggers_unread,
+                max_triggers_highlight,
                 chathistory_references,
                 pending_reactions,
                 pending_redactions,
@@ -814,6 +841,8 @@ impl History {
                     let pending_messages = std::mem::take(pending_messages);
                     *flushing_messages = pending_messages.clone();
                     let read_marker = *read_marker;
+                    let max_triggers_unread = *max_triggers_unread;
+                    let max_triggers_highlight = *max_triggers_highlight;
                     let chathistory_references = chathistory_references.clone();
                     let pending_reactions = std::mem::take(pending_reactions);
                     *flushing_reactions = pending_reactions.clone();
@@ -829,6 +858,8 @@ impl History {
                                 seed,
                                 pending_messages,
                                 read_marker,
+                                max_triggers_unread,
+                                max_triggers_highlight,
                                 chathistory_references,
                                 pending_reactions,
                                 pending_redactions,
@@ -957,6 +988,8 @@ impl History {
                 kind,
                 pending_messages,
                 read_marker,
+                max_triggers_unread,
+                max_triggers_highlight,
                 chathistory_references,
                 pending_reactions,
                 pending_redactions,
@@ -966,6 +999,8 @@ impl History {
                 seed,
                 pending_messages,
                 read_marker,
+                max_triggers_unread,
+                max_triggers_highlight,
                 chathistory_references,
                 pending_reactions,
                 pending_redactions,
