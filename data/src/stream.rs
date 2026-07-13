@@ -45,11 +45,13 @@ pub enum Update {
         is_initial: bool,
         error: Option<String>,
         sent_time: DateTime<Utc>,
+        autoconnect: bool,
     },
     ConnectionFailed {
         server: Server,
         error: String,
         sent_time: DateTime<Utc>,
+        autoconnect: bool,
     },
     MessagesReceived(Server, Vec<message::Encoded>),
     Remove(Server),
@@ -57,12 +59,16 @@ pub enum Update {
         server: Server,
         updated_config: Arc<config::Server>,
     },
+    AutoconnectDisabled {
+        server: Server,
+    },
 }
 
 enum State {
     Disconnected {
         autoconnect: bool,
         retry: Interval,
+        connection_attempt: u16,
     },
     Connected {
         stream: Stream,
@@ -84,8 +90,12 @@ enum Input {
 }
 
 pub enum Control {
-    Disconnect(Option<String>),
-    Connect,
+    Disconnect {
+        error: Option<String>,
+        disable_autoconnect: bool,
+    },
+    Connect(bool),
+    DisableAutoconnect,
     End(Option<String>),
     UpdateConfiguration(Arc<config::Server>, Option<config::Proxy>),
 }
@@ -127,6 +137,7 @@ async fn _run(
     let mut state = State::Disconnected {
         autoconnect: config.autoconnect,
         retry: time::interval(config.reconnect_delay),
+        connection_attempt: 0,
     };
 
     // Notify app of initial disconnected state
@@ -135,11 +146,16 @@ async fn _run(
         is_initial,
         error: None,
         sent_time: Utc::now(),
+        autoconnect: config.autoconnect,
     });
 
     loop {
         match &mut state {
-            State::Disconnected { autoconnect, retry } => {
+            State::Disconnected {
+                autoconnect,
+                retry,
+                connection_attempt,
+            } => {
                 let selection = {
                     if *autoconnect {
                         stream::select(
@@ -147,7 +163,7 @@ async fn _run(
                             retry
                                 .tick()
                                 .into_stream()
-                                .map(|_| Control::Connect)
+                                .map(|_| Control::Connect(true))
                                 .boxed(),
                         )
                         .next()
@@ -168,12 +184,34 @@ async fn _run(
                         state = State::Disconnected {
                             autoconnect: config.autoconnect,
                             retry: time::interval(config.reconnect_delay),
+                            connection_attempt: *connection_attempt,
                         };
                     }
-                    Some(Control::Disconnect(_)) => {
-                        *autoconnect = false;
+                    Some(Control::Disconnect {
+                        disable_autoconnect,
+                        ..
+                    }) => {
+                        if disable_autoconnect {
+                            *autoconnect = false;
+                        }
                     }
-                    Some(Control::Connect) => {
+                    Some(Control::DisableAutoconnect) => {
+                        *autoconnect = false;
+
+                        let _ = sender.unbounded_send(
+                            Update::AutoconnectDisabled {
+                                server: server.clone(),
+                            },
+                        );
+                    }
+                    Some(Control::Connect(automated)) => {
+                        if automated {
+                            *connection_attempt += 1;
+                        } else {
+                            *autoconnect = config.autoconnect;
+                            *connection_attempt = 1;
+                        }
+
                         let _ = sender.unbounded_send(Update::Connecting {
                             server: server.clone(),
                             sent_time: Utc::now(),
@@ -226,15 +264,22 @@ async fn _run(
                                     "[{server}] connection failed: {error}"
                                 );
 
+                                retry.reset();
+
+                                if *connection_attempt
+                                    >= config.max_connection_attempts
+                                {
+                                    *autoconnect = false;
+                                }
+
                                 let _ = sender.unbounded_send(
                                     Update::ConnectionFailed {
                                         server: server.clone(),
                                         error,
                                         sent_time: Utc::now(),
+                                        autoconnect: *autoconnect,
                                     },
                                 );
-
-                                retry.reset();
                             }
                         }
                     }
@@ -280,7 +325,12 @@ async fn _run(
                                 *requested_at + QUIT_REQUEST_TIMEOUT,
                             )
                             .into_stream()
-                            .map(|()| Input::Control(Control::Disconnect(None)))
+                            .map(|()| {
+                                Input::Control(Control::Disconnect {
+                                    error: None,
+                                    disable_autoconnect: true,
+                                })
+                            })
                             .boxed(),
                         );
                     }
@@ -304,6 +354,8 @@ async fn _run(
                             *ping_timeout = None;
                         }
                         proto::Command::ERROR(error) => {
+                            let autoconnect = !quit_requested.is_some();
+
                             if quit_requested.is_some() {
                                 let _ = sender.unbounded_send(
                                     Update::Disconnected {
@@ -311,6 +363,7 @@ async fn _run(
                                         is_initial,
                                         error: None,
                                         sent_time: Utc::now(),
+                                        autoconnect,
                                     },
                                 );
 
@@ -318,11 +371,12 @@ async fn _run(
                                 // a valid acknowledgement
                                 // https://modern.ircdocs.horse/#quit-message
                                 state = State::Disconnected {
-                                    autoconnect: false,
+                                    autoconnect,
                                     retry: time::interval_at(
                                         Instant::now() + config.reconnect_delay,
                                         config.reconnect_delay,
                                     ),
+                                    connection_attempt: 0,
                                 };
                             } else {
                                 log::info!("[{server}] disconnected: {error}");
@@ -332,14 +386,16 @@ async fn _run(
                                         is_initial,
                                         error: Some(error),
                                         sent_time: Utc::now(),
+                                        autoconnect,
                                     },
                                 );
                                 state = State::Disconnected {
-                                    autoconnect: true,
+                                    autoconnect,
                                     retry: time::interval_at(
                                         Instant::now() + config.reconnect_delay,
                                         config.reconnect_delay,
                                     ),
+                                    connection_attempt: 0,
                                 };
                             }
                         }
@@ -352,18 +408,21 @@ async fn _run(
                     }
                     Input::IrcMessage(Err(e)) => {
                         log::info!("[{server}] disconnected: {e}");
+                        let autoconnect = quit_requested.is_none();
                         let _ = sender.unbounded_send(Update::Disconnected {
                             server: server.clone(),
                             is_initial,
                             error: Some(e.to_string()),
                             sent_time: Utc::now(),
+                            autoconnect,
                         });
                         state = State::Disconnected {
-                            autoconnect: quit_requested.is_none(),
+                            autoconnect,
                             retry: time::interval_at(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
                             ),
+                            connection_attempt: 0,
                         };
                     }
                     Input::Batch(messages) => {
@@ -401,18 +460,21 @@ async fn _run(
                     }
                     Input::PingTimeout => {
                         log::info!("[{server}] ping timeout");
+                        let autoconnect = quit_requested.is_none();
                         let _ = sender.unbounded_send(Update::Disconnected {
                             server: server.clone(),
                             is_initial,
                             error: Some("ping timeout".into()),
                             sent_time: Utc::now(),
+                            autoconnect,
                         });
                         state = State::Disconnected {
-                            autoconnect: quit_requested.is_none(),
+                            autoconnect,
                             retry: time::interval_at(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
                             ),
+                            connection_attempt: 0,
                         };
                     }
                     Input::Control(control) => match control {
@@ -458,6 +520,7 @@ async fn _run(
                                         is_initial,
                                         error: None,
                                         sent_time: Utc::now(),
+                                        autoconnect: updated_config.autoconnect,
                                     },
                                 );
                                 state = State::Disconnected {
@@ -466,6 +529,7 @@ async fn _run(
                                         Instant::now() + Duration::from_secs(1),
                                         config.reconnect_delay,
                                     ),
+                                    connection_attempt: 0,
                                 };
                             } else {
                                 let _ = sender.unbounded_send(
@@ -479,21 +543,32 @@ async fn _run(
                             config = updated_config;
                             default_proxy = updated_default_proxy;
                         }
-                        Control::Connect => (),
-                        Control::Disconnect(error) => {
+                        Control::Connect(_) | Control::DisableAutoconnect => (),
+                        Control::Disconnect {
+                            error,
+                            disable_autoconnect,
+                        } => {
+                            let autoconnect = if disable_autoconnect {
+                                false
+                            } else {
+                                config.autoconnect
+                            };
+
                             let _ =
                                 sender.unbounded_send(Update::Disconnected {
                                     server: server.clone(),
                                     is_initial,
                                     error,
                                     sent_time: Utc::now(),
+                                    autoconnect,
                                 });
                             state = State::Disconnected {
-                                autoconnect: false,
+                                autoconnect,
                                 retry: time::interval_at(
                                     Instant::now() + config.reconnect_delay,
                                     config.reconnect_delay,
                                 ),
+                                connection_attempt: 0,
                             };
                         }
                         Control::End(reason) => {
@@ -622,15 +697,29 @@ impl Map {
         }
     }
 
-    pub fn disconnect(&mut self, server: &Server, error: Option<String>) {
+    pub fn disconnect(
+        &mut self,
+        server: &Server,
+        error: Option<String>,
+        disable_autoconnect: bool,
+    ) {
         if let Some(controller) = self.0.get_mut(server) {
-            let _ = controller.try_send(Control::Disconnect(error));
+            let _ = controller.try_send(Control::Disconnect {
+                error,
+                disable_autoconnect,
+            });
         }
     }
 
     pub fn connect(&mut self, server: &Server) {
         if let Some(controller) = self.0.get_mut(server) {
-            let _ = controller.try_send(Control::Connect);
+            let _ = controller.try_send(Control::Connect(false));
+        }
+    }
+
+    pub fn disable_autoconnect(&mut self, server: &Server) {
+        if let Some(controller) = self.0.get_mut(server) {
+            let _ = controller.try_send(Control::DisableAutoconnect);
         }
     }
 

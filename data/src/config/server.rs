@@ -18,7 +18,7 @@ use crate::config::sidebar::OrderChannelsBy;
 use crate::serde::{
     deserialize_path_buf_with_path_transformations,
     deserialize_path_buf_with_path_transformations_maybe,
-    deserialize_u64_positive_integer,
+    deserialize_u16_positive_integer, deserialize_u64_positive_integer,
 };
 use crate::{config, isupport, metadata, target};
 
@@ -96,6 +96,9 @@ pub struct Server {
     /// The amount of time in seconds before attempting to reconnect to the server when disconnected.
     #[serde(deserialize_with = "deserialize_duration_from_secs")]
     pub reconnect_delay: Duration,
+    /// Maximum number of connection attempts until automatic connection attempts are halted.
+    #[serde(deserialize_with = "deserialize_u16_positive_integer")]
+    pub max_connection_attempts: u16,
     /// Whether the client should use NickServ GHOST to reclaim its primary nickname if it is in
     /// use. This has no effect if `nick_password` is not set.
     pub should_ghost: bool,
@@ -262,6 +265,7 @@ impl Default for Server {
             ping_time: 180,
             ping_timeout: 20,
             reconnect_delay: Duration::from_secs(10),
+            max_connection_attempts: 10,
             should_ghost: Default::default(),
             ghost_sequence: vec!["REGAIN".into()],
             umodes: Option::default(),

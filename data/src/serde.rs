@@ -134,6 +134,24 @@ where
     }
 }
 
+pub fn deserialize_u16_positive_integer<'de, D>(
+    deserializer: D,
+) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let integer: u16 = Deserialize::deserialize(deserializer)?;
+
+    if integer == 0 {
+        Err(serde::de::Error::invalid_value(
+            serde::de::Unexpected::Unsigned(integer.into()),
+            &"any positive integer",
+        ))
+    } else {
+        Ok(integer)
+    }
+}
+
 pub fn deserialize_u32_positive_integer<'de, D>(
     deserializer: D,
 ) -> Result<u32, D::Error>

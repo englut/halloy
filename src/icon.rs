@@ -21,11 +21,27 @@ pub fn connected<'a>() -> TextColorSvg<'a, Theme> {
     text_color_svg(svg::Handle::from_memory(entypo_globe))
 }
 
+pub fn connecting<'a>() -> TextColorSvg<'a, Theme> {
+    let fontawesome_exchange =
+        include_bytes!("../assets/fontello/fontawesome-exchange.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(fontawesome_exchange))
+}
+
+// If attempting to connect and not successful
 pub fn disconnected<'a>() -> TextColorSvg<'a, Theme> {
     let entypo_cancel =
         include_bytes!("../assets/fontello/entypo-cancel.svg").to_vec();
 
     text_color_svg(svg::Handle::from_memory(entypo_cancel))
+}
+
+// If not attempting to connect
+pub fn not_connected<'a>() -> TextColorSvg<'a, Theme> {
+    let elusive_error_alt =
+        include_bytes!("../assets/fontello/elusive-error-alt.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(elusive_error_alt))
 }
 
 pub fn link<'a>() -> TextColorSvg<'a, Theme> {

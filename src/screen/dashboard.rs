@@ -763,6 +763,11 @@ impl Dashboard {
 
                         (Task::none(), None)
                     }
+                    sidebar::Event::DisableAutoconnect(server) => {
+                        controllers.disable_autoconnect(&server);
+
+                        (Task::none(), None)
+                    }
                     sidebar::Event::Remove(server) => {
                         (Task::none(), Some(Event::Remove(server)))
                     }

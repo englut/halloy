@@ -815,8 +815,9 @@ impl Halloy {
                     is_initial,
                     error,
                     sent_time,
+                    autoconnect,
                 } => {
-                    self.clients.disconnected(server.clone());
+                    self.clients.disconnected(server.clone(), autoconnect);
 
                     let Screen::Dashboard(dashboard) = &mut self.screen else {
                         return Task::none();
@@ -857,6 +858,8 @@ impl Halloy {
                     }
                 }
                 stream::Update::Connecting { server, sent_time } => {
+                    self.clients.connecting(&server);
+
                     if self.power.suppresses_connection_events() {
                         return Task::none();
                     }
@@ -935,7 +938,10 @@ impl Halloy {
                     server,
                     error,
                     sent_time,
+                    autoconnect,
                 } => {
+                    self.clients.connection_failed(&server, autoconnect);
+
                     if self.power.suppresses_connection_events() {
                         return Task::none();
                     }
@@ -1029,6 +1035,11 @@ impl Halloy {
                         return commands
                             .chain(Task::batch(bouncer_network_commands));
                     }
+
+                    Task::none()
+                }
+                stream::Update::AutoconnectDisabled { server } => {
+                    self.clients.autoconnect_disabled(&server);
 
                     Task::none()
                 }
@@ -1975,12 +1986,16 @@ fn handle_client_events(
             Event::AddToSidebar(query) => {
                 dashboard.add_to_sidebar(server.clone(), query);
             }
-            Event::Disconnect(error) => {
+            Event::AuthenticationFailed(error) => {
                 for bouncer_network in servers.get_bouncer_networks(server) {
-                    controllers.disconnect(bouncer_network, error.clone());
+                    controllers.disconnect(
+                        bouncer_network,
+                        error.clone(),
+                        false,
+                    );
                 }
 
-                controllers.disconnect(server, error);
+                controllers.disconnect(server, error, false);
             }
             Event::Reaction {
                 message,
