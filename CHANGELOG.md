@@ -42,6 +42,7 @@ Fixed:
 - Stop busy-looping on CPU when a DCC file-transfer peer closes its connection early
 - Only play one sound at a time (if two sounds would overlap, then the second sound is skipped)
 - Allow sound files to be symbolic links
+- Queries specified in configuration correctly added to the sidebar
 
 Changed:
 
@@ -60,7 +61,7 @@ Changed:
 Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt
-- Bug reports: @luca020400, agent314
+- Bug reports: @luca020400, agent314, flooferland
 
 # 2026.7.2 (2026-06-08)
 

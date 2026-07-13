@@ -10,6 +10,8 @@ use data::user::Nick;
 use data::{
     Config, Image, buffer, file_transfer, history, input, message, preview,
 };
+use iced::advanced::widget;
+use iced::advanced::widget::operation::focusable;
 use iced::{Size, Task};
 
 pub use self::channel::Channel;
@@ -753,7 +755,7 @@ impl Buffer {
             | Buffer::FileTransfers(_)
             | Buffer::Logs(_)
             | Buffer::Highlights(_)
-            | Buffer::ConfigEditor(_) => Task::none(),
+            | Buffer::ConfigEditor(_) => widget::operate(focusable::unfocus()),
             Buffer::Channel(channel) => channel.focus().map(Message::Channel),
             Buffer::Server(server) => server.focus().map(Message::Server),
             Buffer::Query(query) => query.focus().map(Message::Query),
