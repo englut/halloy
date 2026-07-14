@@ -41,6 +41,7 @@ pub enum Capability {
     ServerTime,
     Setname,
     UserhostInNames,
+    Whoami,
 }
 
 impl FromStr for Capability {
@@ -56,6 +57,7 @@ impl FromStr for Capability {
             "draft/event-playback" => Ok(Self::EventPlayback),
             "draft/multiline" => Ok(Self::Multiline),
             "draft/read-marker" => Ok(Self::ReadMarker),
+            "draft/whoami" => Ok(Self::Whoami),
             "echo-message" => Ok(Self::EchoMessage),
             "extended-join" => Ok(Self::ExtendedJoin),
             "extended-monitor" => Ok(Self::ExtendedMonitor),
@@ -443,6 +445,12 @@ impl Capabilities {
             && !self.acknowledged(Capability::Metadata)
         {
             requested.push("draft/metadata-2");
+        }
+
+        if self.pending.contains_key("draft/whoami")
+            && !self.acknowledged(Capability::Whoami)
+        {
+            requested.push("draft/whoami");
         }
 
         for (cap, val) in self.pending.drain() {
