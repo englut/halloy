@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Buffer;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub enum Pane {
     Split {
         axis: Axis,
@@ -13,6 +13,7 @@ pub enum Pane {
     Buffer {
         buffer: Buffer,
     },
+    #[default]
     Empty,
 }
 

@@ -2,30 +2,63 @@ use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::buffer::{self, Buffer};
 use crate::pane::Pane;
-use crate::serde::fail_as_none;
 use crate::{compression, environment};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Dashboard {
     pub pane: Pane,
-    #[serde(default)]
     pub popout_panes: Vec<Pane>,
-    #[serde(default)]
     pub buffer_settings: BufferSettings,
-    #[serde(default, deserialize_with = "fail_as_none")]
     pub focus_buffer: Option<Buffer>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct BufferSettings(HashMap<String, buffer::Settings>);
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct BufferSettings {
+    settings: HashMap<String, buffer::Settings>,
+    pub show_muted: bool,
+}
+
+impl<'de> Deserialize<'de> for BufferSettings {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Debug, Clone, Deserialize)]
+        #[serde(untagged)]
+        pub enum Format {
+            BufferSettings {
+                #[serde(default)]
+                settings: HashMap<String, buffer::Settings>,
+                #[serde(default)]
+                show_muted: bool,
+            },
+            Legacy(HashMap<String, buffer::Settings>),
+        }
+
+        match Format::deserialize(deserializer)? {
+            Format::BufferSettings {
+                settings,
+                show_muted,
+            } => Ok(BufferSettings {
+                settings,
+                show_muted,
+            }),
+            Format::Legacy(settings) => Ok(BufferSettings {
+                settings,
+                ..BufferSettings::default()
+            }),
+        }
+    }
+}
 
 impl BufferSettings {
     pub fn get(&self, buffer: &buffer::Buffer) -> Option<&buffer::Settings> {
-        self.0.get(&buffer.key())
+        self.settings.get(&buffer.key())
     }
 
     pub fn entry(
@@ -33,7 +66,7 @@ impl BufferSettings {
         buffer: &buffer::Buffer,
         maybe_default: Option<buffer::Settings>,
     ) -> &mut buffer::Settings {
-        self.0
+        self.settings
             .entry(buffer.key())
             .or_insert_with(|| maybe_default.unwrap_or_default())
     }

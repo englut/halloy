@@ -45,6 +45,8 @@ pub struct Keyboard {
     pub quit_application: KeyBinds,
     pub open_config_editor: KeyBinds,
     pub open_config_file: KeyBinds,
+    pub show_muted_buffers: KeyBinds,
+    pub hide_muted_buffers: KeyBinds,
 }
 
 impl Default for Keyboard {
@@ -85,6 +87,8 @@ impl Default for Keyboard {
             quit_application: KeyBind::quit_application().into(),
             open_config_editor: KeyBind::open_config_editor().into(),
             open_config_file: KeyBind::open_config_file().into(),
+            show_muted_buffers: KeyBind::show_muted_buffers().into(),
+            hide_muted_buffers: KeyBind::hide_muted_buffers().into(),
         }
     }
 }
@@ -129,6 +133,8 @@ impl Keyboard {
             (&self.quit_application, QuitApplication),
             (&self.open_config_editor, OpenConfigEditor),
             (&self.open_config_file, OpenConfigFile),
+            (&self.show_muted_buffers, ShowMutedBuffers),
+            (&self.hide_muted_buffers, HideMutedBuffers),
         ]
     }
 

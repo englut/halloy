@@ -71,3 +71,5 @@ Below is a list of all actions which can be mapped.
 | `quit_application`             | Quit Halloy                         | None                                                | None                                                |
 | `open_config_editor`           | Toggle Config Editor Buffer         | <kbd>⌘</kbd> + <kbd>,</kbd>                         | <kbd>ctrl</kbd> + <kbd>,</kbd>                      |
 | `open_config_file`             | Open settings file in system editor | None                                                | None                                                |
+| `show_muted_buffers`           | Show muted buffers                  | None                                                | None                                                |
+| `hide_muted_buffers`           | Hide muted buffers                  | None                                                | None                                                |

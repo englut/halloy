@@ -763,6 +763,10 @@ impl Dashboard {
                     sidebar::Event::Remove(server) => {
                         (Task::none(), Some(Event::Remove(server)))
                     }
+                    sidebar::Event::ShowMutedBuffers(show_muted_buffers) => {
+                        self.buffer_settings.show_muted = show_muted_buffers;
+                        (Task::none(), None)
+                    }
                 };
 
                 let window = main_window.id;
@@ -1422,6 +1426,12 @@ impl Dashboard {
                     OpenConfigFile => {
                         let _ = open_url::open(Config::path());
                     }
+                    ShowMutedBuffers => {
+                        self.buffer_settings.show_muted = true;
+                    }
+                    HideMutedBuffers => {
+                        self.buffer_settings.show_muted = false;
+                    }
                 }
             }
             Message::FileTransfer(update) => {
@@ -1793,6 +1803,7 @@ impl Dashboard {
                 &self.file_transfers,
                 version,
                 theme,
+                self.buffer_settings.show_muted,
             )
             .map(|e| e.map(Message::Sidebar));
 
@@ -1874,6 +1885,7 @@ impl Dashboard {
                         version,
                         config,
                         self.main_window(),
+                        self.buffer_settings.show_muted,
                     )
                     .map(Message::Task),
                 anchored_overlay::Anchor::BelowTopCentered,
@@ -2866,6 +2878,10 @@ impl Dashboard {
                 }
                 command_bar::Buffer::Merge => {
                     (self.merge_pane(clients, config), None)
+                }
+                command_bar::Buffer::ShowMutedBuffers(show_muted_buffers) => {
+                    self.buffer_settings.show_muted = show_muted_buffers;
+                    (Task::none(), None)
                 }
             },
             command_bar::Command::Configuration(command) => match command {
@@ -4407,6 +4423,7 @@ impl Dashboard {
             self.focus,
             self.buffer_resize_action(),
             self.main_window(),
+            self.buffer_settings.show_muted,
         ));
     }
 
@@ -5323,7 +5340,23 @@ fn all_buffers(
         .internal_buffers
         .buffers
         .iter()
-        .map(|&kind| data::Buffer::Internal(kind.into()));
+        .filter_map(|&kind| {
+            let buffer = data::Buffer::Internal(kind.into());
+
+            if matches!(
+                config.sidebar.internal_buffers.mute,
+                config::sidebar::InternalBuffersMutePolicy::Never
+            ) {
+                return Some(buffer);
+            }
+
+            match history::Kind::from_buffer(buffer.clone()) {
+                Some(history_kind) => {
+                    history.has_unread(&history_kind).then_some(buffer)
+                }
+                None => Some(buffer),
+            }
+        });
 
     if config.sidebar.internal_buffers.is_before_servers() {
         internal_buffers.chain(upstream_buffers).collect()

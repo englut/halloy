@@ -267,6 +267,20 @@ pub fn log_indicator<'a>() -> TextColorSvg<'a, Theme> {
     text_color_svg(svg::Handle::from_memory(entypo_cancel))
 }
 
+pub fn show<'a>() -> TextColorSvg<'a, Theme> {
+    let fontawesome_eye =
+        include_bytes!("../assets/fontello/fontawesome-eye.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(fontawesome_eye))
+}
+
+pub fn hide<'a>() -> TextColorSvg<'a, Theme> {
+    let fontawesome_eye_off =
+        include_bytes!("../assets/fontello/fontawesome-eye-off.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(fontawesome_eye_off))
+}
+
 pub fn spinner<'a>(angle: f32) -> TextColorSvg<'a, Theme> {
     let bytes = include_bytes!("../assets/spinner.svg").to_vec();
 

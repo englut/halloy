@@ -29,6 +29,7 @@ impl CommandBar {
         focus: Focus,
         resize_buffer: data::buffer::Resize,
         main_window: window::Id,
+        show_muted_buffers: bool,
     ) -> Self {
         let state = combo_box::State::new(Command::list(
             servers,
@@ -39,6 +40,7 @@ impl CommandBar {
             resize_buffer,
             version,
             main_window,
+            show_muted_buffers,
         ));
         state.focus();
 
@@ -67,6 +69,7 @@ impl CommandBar {
         version: &data::Version,
         config: &'a Config,
         main_window: window::Id,
+        show_muted_buffers: bool,
     ) -> Element<'a, Message> {
         // 1px larger than default
         let font_size =
@@ -108,6 +111,7 @@ impl CommandBar {
                         resize_buffer,
                         version,
                         main_window,
+                        show_muted_buffers,
                     )
                     .iter()
                     .map(|command| {
@@ -172,6 +176,7 @@ pub enum Buffer {
     Replace(data::Buffer),
     Popout,
     Merge,
+    ShowMutedBuffers(bool),
 }
 
 #[derive(Debug, Clone)]
@@ -201,14 +206,21 @@ impl Command {
         resize_buffer: buffer::Resize,
         version: &data::Version,
         main_window: window::Id,
+        show_muted_buffers: bool,
     ) -> Vec<Self> {
         let servers = Server::list(clients, servers)
             .into_iter()
             .map(Command::Server);
 
-        let buffers = Buffer::list(buffers, focus, resize_buffer, main_window)
-            .into_iter()
-            .map(Command::Buffer);
+        let buffers = Buffer::list(
+            buffers,
+            focus,
+            resize_buffer,
+            main_window,
+            show_muted_buffers,
+        )
+        .into_iter()
+        .map(Command::Buffer);
 
         let configs = Configuration::list()
             .into_iter()
@@ -288,6 +300,7 @@ impl Buffer {
         focus: Focus,
         resize_buffer: data::buffer::Resize,
         main_window: window::Id,
+        show_muted_buffers: bool,
     ) -> Vec<Self> {
         let mut list = vec![Buffer::NewHorizontal, Buffer::NewVertical];
         list.extend(
@@ -317,6 +330,8 @@ impl Buffer {
                 .cloned()
                 .map(|buffer| Buffer::Replace(buffer.into())),
         );
+
+        list.push(Buffer::ShowMutedBuffers(!show_muted_buffers));
 
         list
     }
@@ -434,6 +449,15 @@ impl std::fmt::Display for Buffer {
                     }
                 },
             },
+            Buffer::ShowMutedBuffers(show_muted_buffers) => write!(
+                f,
+                "{}",
+                if *show_muted_buffers {
+                    "Show muted buffers"
+                } else {
+                    "Hide muted buffers"
+                }
+            ),
         }
     }
 }

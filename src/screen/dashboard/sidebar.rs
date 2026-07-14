@@ -57,6 +57,7 @@ pub enum Message {
     Connect(Server),
     Remove(Server),
     SystemInformation(iced::system::Information),
+    ShowMutedBuffers(bool),
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +86,7 @@ pub enum Event {
     QuitApplication,
     Connect(Server),
     Remove(Server),
+    ShowMutedBuffers(bool),
 }
 
 #[derive(Clone)]
@@ -197,6 +199,10 @@ impl Sidebar {
                     system_information,
                 }),
             ),
+            Message::ShowMutedBuffers(show_muted_buffers) => (
+                Task::none(),
+                Some(Event::ShowMutedBuffers(show_muted_buffers)),
+            ),
         }
     }
 
@@ -207,6 +213,7 @@ impl Sidebar {
         file_transfers: &'a file_transfer::Manager,
         version: &'a Version,
         theme: &'a Theme,
+        show_muted_buffers: bool,
     ) -> Element<'a, Message> {
         let keyboard = &config.keyboard;
 
@@ -259,6 +266,7 @@ impl Sidebar {
             version.is_old(),
             config.file_transfer.enabled,
             &config.sidebar.internal_buffers.buffers,
+            show_muted_buffers,
         );
 
         if menu.is_empty() {
@@ -324,6 +332,26 @@ impl Sidebar {
                             icon::quit(),
                             Message::QuitApplication,
                         ),
+                        Menu::ShowMutedBuffers(show_muted_buffers) => {
+                            context_button(
+                                text(if show_muted_buffers {
+                                    "Show muted buffers"
+                                } else {
+                                    "Hide muted buffers"
+                                }),
+                                Some(if show_muted_buffers {
+                                    &keyboard.show_muted_buffers
+                                } else {
+                                    &keyboard.hide_muted_buffers
+                                }),
+                                if show_muted_buffers {
+                                    icon::show()
+                                } else {
+                                    icon::hide()
+                                },
+                                Message::ShowMutedBuffers(show_muted_buffers),
+                            )
+                        }
                         Menu::RefreshConfig => context_button(
                             text("Reload config file"),
                             Some(&keyboard.reload_configuration),
@@ -470,6 +498,7 @@ impl Sidebar {
         file_transfers: &'a file_transfer::Manager,
         version: &'a Version,
         theme: &'a Theme,
+        show_muted_buffers: bool,
     ) -> Option<Element<'a, Message>> {
         if self.hidden {
             return None;
@@ -484,6 +513,7 @@ impl Sidebar {
                         file_transfers,
                         version,
                         theme,
+                        show_muted_buffers,
                     )
                 });
 
@@ -603,51 +633,44 @@ impl Sidebar {
                 }
             }
 
-            let mut internal_buffers = vec![];
-
-            for internal_buffer in
-                config.sidebar.internal_buffers.buffers.iter()
-            {
-                let button = |buffer: buffer::Internal, title: &'static str| {
-                    internal_buffer_button(
-                        config, panes, focus, buffer, title, history, width,
-                        theme,
-                    )
-                };
-
-                match internal_buffer {
-                    config::sidebar::InternalBuffer::ConfigEditor => {
-                        internal_buffers.push(button(
+            let internal_buffers: Vec<_> = config
+                .sidebar
+                .internal_buffers
+                .buffers
+                .iter()
+                .filter_map(|internal_buffer| {
+                    let (buffer, title) = match internal_buffer {
+                        config::sidebar::InternalBuffer::ConfigEditor => (
                             buffer::Internal::ConfigEditor,
                             "Config Editor",
-                        ));
-                    }
-                    config::sidebar::InternalBuffer::FileTransfers => {
-                        config.file_transfer.enabled.then(|| {
-                            internal_buffers.push(button(
+                        ),
+                        data::config::sidebar::InternalBuffer::FileTransfers => {
+                            config.file_transfer.enabled.then_some((
                                 buffer::Internal::FileTransfers,
                                 "File Transfers",
-                            ));
-                        });
-                    }
-                    config::sidebar::InternalBuffer::ChannelDiscovery => {
-                        internal_buffers.push(button(
+                            ))?
+                        }
+                        data::config::sidebar::InternalBuffer::ChannelDiscovery => (
                             buffer::Internal::ChannelDiscovery(None),
                             "Channel Discovery",
-                        ));
-                    }
-                    config::sidebar::InternalBuffer::Highlights => {
-                        internal_buffers.push(button(
+                        ),
+                        data::config::sidebar::InternalBuffer::Highlights => (
                             buffer::Internal::Highlights,
                             "Highlights",
-                        ));
+                        ),
+                        data::config::sidebar::InternalBuffer::Logs => (
+                            buffer::Internal::Logs,
+                            "Logs",
+                        ),
+                    };
+
+                    if show_muted_buffers || should_show_internal_buffer(buffer.clone(), config, history) {
+                        Some(internal_buffer_button(config, panes, focus, buffer, title, history, width, theme))
+                    } else {
+                        None
                     }
-                    config::sidebar::InternalBuffer::Logs => {
-                        internal_buffers
-                            .push(button(buffer::Internal::Logs, "Logs"));
-                    }
-                }
-            }
+                })
+                .collect();
 
             let spacer = if config.sidebar.position.is_horizontal() {
                 space::horizontal()
@@ -799,6 +822,7 @@ enum Menu {
     HorizontalRule,
     Documentation,
     QuitApplication,
+    ShowMutedBuffers(bool),
 }
 
 impl Menu {
@@ -806,6 +830,7 @@ impl Menu {
         has_new_version: bool,
         file_transfer_enabled: bool,
         internal_buffers_in_sidebar: &[config::sidebar::InternalBuffer],
+        show_muted_buffers: bool,
     ) -> Vec<Self> {
         let mut list = vec![Self::Version];
 
@@ -848,6 +873,7 @@ impl Menu {
             Self::ConfigEditor,
             Self::RefreshConfig,
             Self::ThemeEditor,
+            Self::ShowMutedBuffers(!show_muted_buffers),
             Self::QuitApplication,
         ]);
 
@@ -1416,6 +1442,20 @@ fn upstream_buffer_button<'a>(
             },
         )
         .into()
+    }
+}
+
+fn should_show_internal_buffer(
+    buffer: buffer::Internal,
+    config: &Config,
+    history: &history::Manager,
+) -> bool {
+    match config.sidebar.internal_buffers.mute {
+        config::sidebar::InternalBuffersMutePolicy::Never => true,
+        config::sidebar::InternalBuffersMutePolicy::Read => {
+            history::Kind::from_buffer(data::Buffer::Internal(buffer.clone()))
+                .is_none_or(|kind| history.has_unread(&kind))
+        }
     }
 }
 
