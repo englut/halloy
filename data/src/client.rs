@@ -1073,6 +1073,9 @@ impl Client {
                                     ))
                                 })
                             }
+                            Some("labeled-response") => {
+                                Some(BatchKind::LabeledResponse)
+                            }
                             _ => None,
                         };
 
@@ -1201,6 +1204,7 @@ impl Client {
                                         _,
                                     ))
                                     | Some(BatchKind::ZncPlayback(_))
+                                    | Some(BatchKind::LabeledResponse)
                                     | None => (),
                                 };
 
@@ -1233,9 +1237,9 @@ impl Client {
                             self.handle_multiline(message, batch_tag);
                             vec![]
                         }
-                        Some(BatchKind::ChathistoryTargets) | None => {
-                            self.handle(message, context, config)?
-                        }
+                        Some(BatchKind::ChathistoryTargets)
+                        | Some(BatchKind::LabeledResponse)
+                        | None => self.handle(message, context, config)?,
                         Some(BatchKind::ZncPlayback(batch_target)) => self
                             .handle_znc_playback(message, batch_target.clone()),
                     };
@@ -5554,7 +5558,9 @@ impl Context {
                 )
             }
             Command::BATCH(_, params)
-                if params.iter().any(|param| param == "draft/multiline") =>
+                if params.iter().any(|param| {
+                    param == "draft/multiline" || param == "labeled-response"
+                }) =>
             {
                 Self::PrivOrNotice(
                     buffer,
@@ -5607,6 +5613,7 @@ pub enum BatchKind {
         String,
     ),
     ZncPlayback(Target),
+    LabeledResponse,
 }
 
 impl BatchKind {
@@ -5615,7 +5622,7 @@ impl BatchKind {
             Self::ChathistoryTarget(batch_target)
             | Self::Multiline(_, _, batch_target, _, _)
             | Self::ZncPlayback(batch_target) => Some(batch_target.clone()),
-            Self::ChathistoryTargets => None,
+            Self::ChathistoryTargets | Self::LabeledResponse => None,
         }
     }
 }
