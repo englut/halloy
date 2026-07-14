@@ -22,10 +22,10 @@ pub fn connected<'a>() -> TextColorSvg<'a, Theme> {
 }
 
 pub fn connecting<'a>() -> TextColorSvg<'a, Theme> {
-    let fontawesome_exchange =
-        include_bytes!("../assets/fontello/fontawesome-exchange.svg").to_vec();
+    let fontawesome_plug =
+        include_bytes!("../assets/fontello/fontawesome-plug.svg").to_vec();
 
-    text_color_svg(svg::Handle::from_memory(fontawesome_exchange))
+    text_color_svg(svg::Handle::from_memory(fontawesome_plug))
 }
 
 // If attempting to connect and not successful
@@ -259,10 +259,11 @@ pub fn reply<'a>() -> Text<'a> {
 }
 
 pub fn not_sent<'a>() -> TextColorSvg<'a, Theme> {
-    let fontawesome_attention =
-        include_bytes!("../assets/fontello/fontawesome-attention.svg").to_vec();
+    let modern_pictograms_attention =
+        include_bytes!("../assets/fontello/modern-pictograms-attention.svg")
+            .to_vec();
 
-    text_color_svg(svg::Handle::from_memory(fontawesome_attention))
+    text_color_svg(svg::Handle::from_memory(modern_pictograms_attention))
 }
 
 pub fn eraser<'a>() -> Text<'a> {
