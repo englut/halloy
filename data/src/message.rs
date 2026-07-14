@@ -392,16 +392,24 @@ impl Message {
     pub fn triggers_highlight(&self) -> bool {
         if matches!(self.direction, Direction::Received)
             && !self.is_echo
-            && let Content::Fragments(fragments) = &self.content
-            && fragments.iter().any(|fragment| {
-                matches!(
-                    fragment,
-                    Fragment::HighlightNick(_, _) | Fragment::HighlightMatch(_)
-                )
-            })
             && !self.blocked
         {
-            true
+            if let Content::Fragments(fragments) = &self.content
+                && fragments.iter().any(|fragment| {
+                    matches!(
+                        fragment,
+                        Fragment::HighlightNick(_, _)
+                            | Fragment::HighlightMatch(_)
+                    )
+                })
+            {
+                true
+            } else {
+                matches!(
+                    self.target.source(),
+                    Source::Internal(source::Internal::Logs(Level::Error))
+                )
+            }
         } else {
             false
         }

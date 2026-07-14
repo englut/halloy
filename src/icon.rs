@@ -253,6 +253,20 @@ pub fn eraser<'a>() -> Text<'a> {
     to_text('\u{F12D}')
 }
 
+pub fn about<'a>() -> TextColorSvg<'a, Theme> {
+    let entypo_info_circled =
+        include_bytes!("../assets/fontello/entypo-info-circled.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(entypo_info_circled))
+}
+
+pub fn log_indicator<'a>() -> TextColorSvg<'a, Theme> {
+    let entypo_cancel =
+        include_bytes!("../assets/fontello/entypo-cancel.svg").to_vec();
+
+    text_color_svg(svg::Handle::from_memory(entypo_cancel))
+}
+
 pub fn spinner<'a>(angle: f32) -> TextColorSvg<'a, Theme> {
     let bytes = include_bytes!("../assets/spinner.svg").to_vec();
 
