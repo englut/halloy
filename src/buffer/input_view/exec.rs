@@ -4,6 +4,10 @@ use std::time::Duration;
 use tokio::process::Command;
 use tokio::time;
 
+// https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 pub async fn run(
     command: String,
     timeout_secs: u64,
@@ -12,6 +16,8 @@ pub async fn run(
     let output = time::timeout(Duration::from_secs(timeout_secs), async move {
         let mut process = if cfg!(target_os = "windows") {
             let mut process = Command::new("cmd");
+            #[cfg(target_os = "windows")]
+            process.creation_flags(CREATE_NO_WINDOW);
             process.arg("/C").arg(command);
             process
         } else {
