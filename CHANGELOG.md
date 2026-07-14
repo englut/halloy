@@ -44,6 +44,7 @@ Fixed:
 - Only play one sound at a time (if two sounds would overlap, then the second sound is skipped)
 - Allow sound files to be symbolic links
 - Queries specified in configuration correctly added to the sidebar
+- Apply mode arguments to the correct targets when a `MODE` message mixes added and removed modes (e.g. `-o+v foo bar` de-ops `foo` and voices `bar`)
 
 Changed:
 
