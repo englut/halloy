@@ -517,9 +517,9 @@ Read more about [monitoring users](../guides/monitor-users.md).
 monitor = ["Foo", "Bar"]
 ```
 
-## `chathistory`
+## `automated_chathistory`
 
-Whether or not to enable [IRCv3 Chat History](https://ircv3.net/specs/extensions/chathistory) (if it is supported by the server).
+Whether or not to enable automated [IRCv3 Chat History](https://ircv3.net/specs/extensions/chathistory) requests (if it is supported by the server).  For example, automatically requesting history when joining a channel since the last received message in the channel.
 
 ```toml
 # Type: boolean
@@ -527,7 +527,7 @@ Whether or not to enable [IRCv3 Chat History](https://ircv3.net/specs/extensions
 # Default: true
 
 [servers.<name>]
-chathistory = true
+automated_chathistory = true
 ```
 
 ## `proxy`
@@ -1069,6 +1069,19 @@ Override the server icon URL advertised by the server via ISUPPORT.
 
 [servers.<name>.icon]
 override_url = "https://libera.chat/static/img/libera-color.svg"
+```
+
+## `do_not_request`
+
+[IRCv3 capabilities](https://ircv3.net/irc/) to **not** request from the server.  All [supported IRCv3 capabilities](/index.md#ircv3-capabilities) that are available are requested by default.
+
+```toml
+# Type: array of strings
+# Values: "account-notify", "away-notify", "batch", "bouncer-networks", "chathistory", "chghost", "echo-message", "event-playback", "extended-join", "extended-monitor", "invite-notify", "labeled-response", "message-tags", "message-redaction", "multiline", "multi-prefix", "metadata", "no-implicit-names", "read-marker", "sasl", "server-time", "setname", "userhost-in-names", "whoami"
+# Default: not set
+
+[servers.<name>]
+do_not_request = [ "labeled-response" ]
 ```
 
 [^1]: Windows path strings should usually be specified as literal strings (e.g. `'C:\Users\Default\'`), otherwise directory separators will need to be escaped (e.g. `"C:\\Users\\Default\\"`).

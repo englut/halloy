@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::string::ToString;
@@ -5,6 +6,7 @@ use std::sync::LazyLock;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use irc::proto::{self, Tags, command, format};
+use serde::Deserialize;
 
 use crate::message::formatting::{Modifier, update_formatting_with_modifier};
 use crate::{Target, User, config, message};
@@ -16,7 +18,8 @@ pub static DEFAULT: LazyLock<Capabilities> =
 // Halloy will request when available.  When adding new IRCv3 capabilities to
 // Halloy they should be added to this enum (Capability), Capability::from_str,
 // and Capabilities::create_requested.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum Capability {
     AccountNotify,
     AwayNotify,
@@ -279,7 +282,11 @@ pub struct Capabilities {
 impl Capabilities {
     pub fn acknowledge(&mut self, caps: impl Iterator<Item = String>) {
         for cap in caps {
-            if let Ok(cap) = Capability::from_str(cap.as_str()) {
+            if let Some(cap) = cap.as_str().strip_prefix('-') {
+                if let Ok(cap) = Capability::from_str(cap) {
+                    self.acknowledged.remove(&cap);
+                }
+            } else if let Ok(cap) = Capability::from_str(cap.as_str()) {
                 self.acknowledged.insert(cap);
             }
         }
@@ -289,175 +296,279 @@ impl Capabilities {
         self.acknowledged.contains(&cap)
     }
 
-    pub fn create_requested(
-        &mut self,
+    fn create_request(
+        &self,
+        capability_str: &'static str,
+        requirements: &[&'static str],
+        available: &HashMap<String, String>,
         config: &config::Server,
-    ) -> Vec<&'static str> {
+    ) -> Option<Cow<'static, str>> {
+        let capability_enum = Capability::from_str(capability_str).ok()?;
+
+        if available.contains_key(capability_str)
+            && requirements.iter().all(|requirement_str| {
+                if let Ok(requirement_enum) =
+                    Capability::from_str(requirement_str)
+                {
+                    (available.contains_key(*requirement_str)
+                        || self.acknowledged(requirement_enum))
+                        && !config.do_not_request.contains(&requirement_enum)
+                } else {
+                    false
+                }
+            })
+        {
+            match capability_enum {
+                Capability::Multiline => {
+                    if available.get(capability_str).is_none_or(|multiline| {
+                        MultilineLimits::from_str(multiline).is_err()
+                    }) {
+                        return None;
+                    }
+                }
+                Capability::AccountNotify
+                | Capability::AwayNotify
+                | Capability::Batch
+                | Capability::BouncerNetworks
+                | Capability::Chathistory
+                | Capability::Chghost
+                | Capability::EchoMessage
+                | Capability::EventPlayback
+                | Capability::ExtendedJoin
+                | Capability::ExtendedMonitor
+                | Capability::InviteNotify
+                | Capability::LabeledResponse
+                | Capability::MessageTags
+                | Capability::MessageRedaction
+                | Capability::MultiPrefix
+                | Capability::Metadata
+                | Capability::NoImplicitNames
+                | Capability::ReadMarker
+                | Capability::Sasl
+                | Capability::ServerTime
+                | Capability::Setname
+                | Capability::UserhostInNames
+                | Capability::Whoami => (),
+            }
+
+            if !config.do_not_request.contains(&capability_enum)
+                && !self.acknowledged(capability_enum)
+            {
+                return Some(capability_str.into());
+            } else if config.do_not_request.contains(&capability_enum)
+                && self.acknowledged(capability_enum)
+            {
+                return Some(format!("-{capability_str}").into());
+            }
+        }
+
+        None
+    }
+
+    fn create_requested(
+        &self,
+        available: &HashMap<String, String>,
+        config: &config::Server,
+    ) -> Vec<Cow<'static, str>> {
         let mut requested = vec![];
 
-        if self.pending.contains_key("invite-notify")
-            && !self.acknowledged(Capability::InviteNotify)
+        if let Some(request) =
+            self.create_request("invite-notify", &[], available, config)
         {
-            requested.push("invite-notify");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("userhost-in-names")
-            && !self.acknowledged(Capability::UserhostInNames)
+        if let Some(request) =
+            self.create_request("userhost-in-names", &[], available, config)
         {
-            requested.push("userhost-in-names");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("away-notify")
-            && !self.acknowledged(Capability::AwayNotify)
+        if let Some(request) =
+            self.create_request("away-notify", &[], available, config)
         {
-            requested.push("away-notify");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("message-tags")
-            && !self.acknowledged(Capability::MessageTags)
+        if let Some(request) =
+            self.create_request("message-tags", &[], available, config)
         {
-            requested.push("message-tags");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("draft/message-redaction")
-            && !self.acknowledged(Capability::MessageRedaction)
-        {
-            requested.push("draft/message-redaction");
+        if let Some(request) = self.create_request(
+            "draft/message-redaction",
+            &[],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("server-time")
-            && !self.acknowledged(Capability::ServerTime)
+        if let Some(request) =
+            self.create_request("server-time", &[], available, config)
         {
-            requested.push("server-time");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("chghost")
-            && !self.acknowledged(Capability::Chghost)
+        if let Some(request) =
+            self.create_request("chghost", &[], available, config)
         {
-            requested.push("chghost");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("extended-monitor")
-            && !self.acknowledged(Capability::ExtendedMonitor)
+        if let Some(request) =
+            self.create_request("extended-monitor", &[], available, config)
         {
-            requested.push("extended-monitor");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("account-notify")
-            || self.acknowledged(Capability::AccountNotify)
-        {
-            if !self.acknowledged(Capability::AccountNotify) {
-                requested.push("account-notify");
-            }
-
-            if self.pending.contains_key("extended-join")
-                && !self.acknowledged(Capability::ExtendedJoin)
-            {
-                requested.push("extended-join");
-            }
+        if let Some(request) = self.create_request(
+            "draft/message-redaction",
+            &[],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("batch")
-            || self.acknowledged(Capability::Batch)
+        if let Some(request) =
+            self.create_request("account-notify", &[], available, config)
         {
-            if !self.acknowledged(Capability::Batch) {
-                requested.push("batch");
-            }
-
-            // We require batch for chathistory support
-            if (self.pending.contains_key("draft/chathistory")
-                && config.chathistory)
-                || self.acknowledged(Capability::Chathistory)
-            {
-                if !self.acknowledged(Capability::Chathistory) {
-                    requested.push("draft/chathistory");
-                }
-
-                if self.pending.contains_key("draft/event-playback")
-                    && !self.acknowledged(Capability::EventPlayback)
-                {
-                    requested.push("draft/event-playback");
-                }
-            }
+            requested.push(request);
         }
 
-        if self.pending.contains_key("labeled-response")
-            && !self.acknowledged(Capability::LabeledResponse)
-        {
-            requested.push("labeled-response");
+        if let Some(request) = self.create_request(
+            "extended-join",
+            &["account-notify"],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("echo-message")
-            && !self.acknowledged(Capability::EchoMessage)
+        if let Some(request) =
+            self.create_request("batch", &[], available, config)
         {
-            requested.push("echo-message");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("multi-prefix")
-            && !self.acknowledged(Capability::MultiPrefix)
-        {
-            requested.push("multi-prefix");
+        if let Some(request) = self.create_request(
+            "draft/chathistory",
+            &["batch"],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("draft/read-marker")
-            && !self.acknowledged(Capability::ReadMarker)
-        {
-            requested.push("draft/read-marker");
+        if let Some(request) = self.create_request(
+            "draft/event-playback",
+            &["batch", "draft/chathistory"],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("setname")
-            && !self.acknowledged(Capability::Setname)
+        if let Some(request) =
+            self.create_request("labeled-response", &[], available, config)
         {
-            requested.push("setname");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("soju.im/bouncer-networks")
-            && !self.acknowledged(Capability::BouncerNetworks)
+        if let Some(request) =
+            self.create_request("echo-message", &[], available, config)
         {
-            requested.push("soju.im/bouncer-networks");
+            requested.push(request);
         }
 
-        if self.pending.iter().any(|(cap, _)| cap.starts_with("sasl"))
-            && !self.acknowledged(Capability::Sasl)
+        if let Some(request) =
+            self.create_request("multi-prefix", &[], available, config)
         {
-            requested.push("sasl");
+            requested.push(request);
         }
 
-        if let Some(multiline) = self.pending.get("draft/multiline")
-            && !self.acknowledged(Capability::Multiline)
-            && MultilineLimits::from_str(multiline).is_ok()
+        if let Some(request) =
+            self.create_request("draft/read-marker", &[], available, config)
         {
-            requested.push("draft/multiline");
+            requested.push(request);
+        }
+
+        if let Some(request) =
+            self.create_request("setname", &[], available, config)
+        {
+            requested.push(request);
+        }
+
+        if let Some(request) = self.create_request(
+            "soju.im/bouncer-networks",
+            &[],
+            available,
+            config,
+        ) {
+            requested.push(request);
+        }
+
+        if let Some(request) =
+            self.create_request("sasl", &[], available, config)
+        {
+            requested.push(request);
+        }
+
+        if let Some(request) =
+            self.create_request("draft/multiline", &[], available, config)
+        {
+            requested.push(request);
         }
 
         // TODO(quaff): remove `draft/no-implicit-names` support when ergo & soju have both been upgraded
-        if self.pending.contains_key("no-implicit-names")
-            && !self.acknowledged(Capability::NoImplicitNames)
+        if let Some(request) =
+            self.create_request("no-implicit-names", &[], available, config)
         {
-            requested.push("no-implicit-names");
-        } else if self.pending.contains_key("draft/no-implicit-names")
-            && !self.acknowledged(Capability::NoImplicitNames)
-        {
-            requested.push("draft/no-implicit-names");
+            requested.push(request);
+        } else if let Some(request) = self.create_request(
+            "draft/no-implicit-names",
+            &[],
+            available,
+            config,
+        ) {
+            requested.push(request);
         }
 
-        if self.pending.contains_key("draft/metadata-2")
-            && !self.acknowledged(Capability::Metadata)
+        if let Some(request) =
+            self.create_request("draft/metadata-2", &[], available, config)
         {
-            requested.push("draft/metadata-2");
+            requested.push(request);
         }
 
-        if self.pending.contains_key("draft/whoami")
-            && !self.acknowledged(Capability::Whoami)
+        if let Some(request) =
+            self.create_request("draft/whoami", &[], available, config)
         {
-            requested.push("draft/whoami");
+            requested.push(request);
         }
+
+        requested
+    }
+
+    pub fn create_new_requested(
+        &mut self,
+        config: &config::Server,
+    ) -> Vec<Cow<'static, str>> {
+        let requested = self.create_requested(&self.pending, config);
 
         for (cap, val) in self.pending.drain() {
             self.listed.insert(cap, val);
         }
 
         requested
+    }
+
+    pub fn create_update_requested(
+        &self,
+        config: &config::Server,
+    ) -> Vec<Cow<'static, str>> {
+        self.create_requested(&self.listed, config)
     }
 
     pub fn delete(&mut self, caps: impl Iterator<Item = String>) {
