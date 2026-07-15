@@ -44,6 +44,7 @@ Fixed:
 - Only play one sound at a time (if two sounds would overlap, then the second sound is skipped)
 - Allow sound files to be symbolic links
 - Queries specified in configuration correctly added to the sidebar
+- Do not reconnect automatically when the server closes the connection in response to a requested quit
 
 Changed:
 
@@ -61,7 +62,7 @@ Changed:
 
 Thanks:
 
-- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt
+- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
 - Bug reports: @luca020400, agent314, flooferland, @englut
 
 # 2026.7.2 (2026-06-08)
