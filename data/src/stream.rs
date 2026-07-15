@@ -351,42 +351,20 @@ async fn _run(
                         log::warn!("message decoding failed: {e}");
                     }
                     Input::IrcMessage(Err(e)) => {
-                        if quit_requested.is_some() {
-                            let _ =
-                                sender.unbounded_send(Update::Disconnected {
-                                    server: server.clone(),
-                                    is_initial,
-                                    error: None,
-                                    sent_time: Utc::now(),
-                                });
-
-                            // If QUIT was requested, then the server closing
-                            // the connection is a valid acknowledgement as
-                            // well, so don't reconnect
-                            state = State::Disconnected {
-                                autoconnect: false,
-                                retry: time::interval_at(
-                                    Instant::now() + config.reconnect_delay,
-                                    config.reconnect_delay,
-                                ),
-                            };
-                        } else {
-                            log::info!("[{server}] disconnected: {e}");
-                            let _ =
-                                sender.unbounded_send(Update::Disconnected {
-                                    server: server.clone(),
-                                    is_initial,
-                                    error: Some(e.to_string()),
-                                    sent_time: Utc::now(),
-                                });
-                            state = State::Disconnected {
-                                autoconnect: true,
-                                retry: time::interval_at(
-                                    Instant::now() + config.reconnect_delay,
-                                    config.reconnect_delay,
-                                ),
-                            };
-                        }
+                        log::info!("[{server}] disconnected: {e}");
+                        let _ = sender.unbounded_send(Update::Disconnected {
+                            server: server.clone(),
+                            is_initial,
+                            error: Some(e.to_string()),
+                            sent_time: Utc::now(),
+                        });
+                        state = State::Disconnected {
+                            autoconnect: quit_requested.is_none(),
+                            retry: time::interval_at(
+                                Instant::now() + config.reconnect_delay,
+                                config.reconnect_delay,
+                            ),
+                        };
                     }
                     Input::Batch(messages) => {
                         let _ = sender.unbounded_send(
@@ -430,7 +408,7 @@ async fn _run(
                             sent_time: Utc::now(),
                         });
                         state = State::Disconnected {
-                            autoconnect: true,
+                            autoconnect: quit_requested.is_none(),
                             retry: time::interval_at(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
