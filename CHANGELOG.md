@@ -62,7 +62,7 @@ Changed:
 
 Thanks:
 
-- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt
+- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
 - Bug reports: @luca020400, agent314, flooferland, @englut
 
 # 2026.7.2 (2026-06-08)
