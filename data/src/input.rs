@@ -305,6 +305,7 @@ impl Input {
                 casemapping,
                 supports_echoes,
                 reroute_rules,
+                Some(&self.buffer),
             )
         })
     }

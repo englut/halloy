@@ -2016,6 +2016,7 @@ fn create_message(
     config: &Config,
     clients: &data::client::Map,
     reroute_rules: &RerouteRules,
+    focused_buffer: Option<&data::buffer::Upstream>,
 ) -> Option<data::Message> {
     data::Message::received(
         encoded,
@@ -2023,6 +2024,7 @@ fn create_message(
         deduplicate,
         config,
         reroute_rules,
+        focused_buffer,
         |user, channel| {
             clients
                 .resolve_user_attributes(server, channel, user)
@@ -2045,6 +2047,7 @@ fn create_message_with_highlight(
     config: &Config,
     clients: &data::client::Map,
     reroute_rules: &RerouteRules,
+    focused_buffer: Option<&data::buffer::Upstream>,
     is_our_message: impl Fn(
         &message::Id,
         &data::history::Kind,
@@ -2057,6 +2060,7 @@ fn create_message_with_highlight(
         deduplicate,
         config,
         reroute_rules,
+        focused_buffer,
         |user, channel| {
             clients
                 .resolve_user_attributes(server, channel, user)
@@ -2091,6 +2095,7 @@ fn handle_single_event(
         config,
         clients,
         dashboard.get_reroute_rules(),
+        dashboard.focused_upstream_buffer(),
     ) else {
         return;
     };
@@ -2136,6 +2141,7 @@ fn handle_with_target_event(
         config,
         clients,
         dashboard.get_reroute_rules(),
+        dashboard.focused_upstream_buffer(),
     ) else {
         return;
     };
@@ -2184,6 +2190,7 @@ fn handle_priv_or_notice(
             config,
             clients,
             dashboard.get_reroute_rules(),
+            dashboard.focused_upstream_buffer(),
             |id, kind, server_time| {
                 dashboard.history().is_our_message(id, kind, server_time)
             },
@@ -2621,6 +2628,7 @@ fn handle_direct_message(
         config,
         clients,
         dashboard.get_reroute_rules(),
+        dashboard.focused_upstream_buffer(),
     ) else {
         return;
     };

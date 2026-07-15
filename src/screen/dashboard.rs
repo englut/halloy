@@ -3514,6 +3514,7 @@ impl Dashboard {
                     casemapping,
                     supports_echoes,
                     self.history.get_reroute_rules(),
+                    Some(buffer),
                 )
                 .and_then(|messages| messages.into_iter().next())
                 && let Some(mut encoded) = proto::Command::try_from(command)
@@ -3949,6 +3950,11 @@ impl Dashboard {
         self.panes
             .get(window, pane)
             .map(|state| (window, pane, state))
+    }
+
+    pub fn focused_upstream_buffer(&self) -> Option<&data::buffer::Upstream> {
+        self.get_focused()
+            .and_then(|(_, _, pane)| pane.buffer.upstream())
     }
 
     fn get_focused_mut(

@@ -121,6 +121,7 @@ impl Irc {
         casemapping: isupport::CaseMap,
         supports_echoes: bool,
         reroute_rules: &RerouteRules,
+        focused_buffer: Option<&buffer::Upstream>,
     ) -> Option<Vec<Message>> {
         let to_message_target = |target: &str, source| {
             if target == "*" {
@@ -165,6 +166,7 @@ impl Irc {
                                 &message_target,
                                 reroute_rules,
                                 server,
+                                focused_buffer,
                             )
                             .unwrap_or(message_target);
 
@@ -197,6 +199,7 @@ impl Irc {
                                 &message_target,
                                 reroute_rules,
                                 server,
+                                focused_buffer,
                             )
                             .unwrap_or(message_target);
 
@@ -225,6 +228,7 @@ impl Irc {
                     &message_target,
                     reroute_rules,
                     server,
+                    focused_buffer,
                 )
                 .unwrap_or(message_target);
 
