@@ -45,6 +45,7 @@ Fixed:
 - Allow sound files to be symbolic links
 - Queries specified in configuration correctly added to the sidebar
 - Do not reconnect automatically when the server closes the connection in response to a requested quit
+- Don't show a transient terminal window when running `/exec` on Windows
 
 Changed:
 
@@ -63,7 +64,7 @@ Changed:
 Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
-- Bug reports: @luca020400, agent314, flooferland, @englut
+- Bug reports: @luca020400, agent314, @FlooferLand, @englut
 
 # 2026.7.2 (2026-06-08)
 
