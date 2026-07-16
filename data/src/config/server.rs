@@ -156,6 +156,8 @@ pub struct Server {
     pub icon: Icon,
     /// A list of capabilities not to request from the server (even if present).
     pub do_not_request: Vec<Capability>,
+    /// Whether to log all IRC protocol messages
+    pub log_irc_protocol: bool,
 }
 
 impl Server {
@@ -260,6 +262,7 @@ impl Server {
                 != other.password_file_first_line_only
             || self.password_command != other.password_command
             || self.sasl != other.sasl
+            || self.log_irc_protocol != other.log_irc_protocol
     }
 }
 
@@ -316,6 +319,7 @@ impl Default for Server {
             metadata: HashMap::default(),
             icon: Icon::default(),
             do_not_request: vec![],
+            log_irc_protocol: false,
         }
     }
 }

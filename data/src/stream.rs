@@ -1,19 +1,22 @@
 use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use futures::channel::mpsc;
 use futures::never::Never;
 use futures::{FutureExt, SinkExt, StreamExt, future, stream};
 use irc::proto::{self, Command, command};
-use irc::{Connection, codec, connection};
+use irc::{CodecLog, Connection, codec, connection};
+use tokio::fs::{self, File};
+use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::time::{self, Instant, Interval};
 
 use crate::client::Client;
 use crate::server::Server;
 use crate::time::Posix;
-use crate::{config, message, server};
+use crate::{config, environment, message, server};
 
 const QUIT_REQUEST_TIMEOUT: Duration = Duration::from_millis(400);
 
@@ -602,8 +605,19 @@ async fn connect(
     config: Arc<config::Server>,
     proxy: Option<config::Proxy>,
 ) -> Result<(Stream, Client), connection::Error> {
+    let logger = if config.log_irc_protocol {
+        let (sender, receiver) = tokio::sync::mpsc::channel(100);
+
+        tokio::task::spawn(log_codec(server.clone(), receiver));
+
+        Some(sender)
+    } else {
+        None
+    };
+
     let connection =
-        Connection::new(config.connection(proxy), irc::Codec).await?;
+        Connection::new(config.connection(proxy), irc::Codec::new(logger))
+            .await?;
 
     let (sender, receiver) = mpsc::channel(100);
 
@@ -619,6 +633,102 @@ async fn connect(
         },
         client,
     ))
+}
+
+async fn log_codec(
+    server: Server,
+    mut receiver: tokio::sync::mpsc::Receiver<CodecLog>,
+) {
+    let log_writer = LogWriter::new(&server).await;
+
+    match log_writer {
+        Ok(mut log_writer) => {
+            while let Some(message) = receiver.recv().await {
+                log_writer.write(message).await;
+            }
+
+            log_writer.flush().await;
+        }
+        Err(error) => {
+            log::error!("unable to create log writer for {server}: {error}");
+        }
+    }
+}
+
+struct LogWriter {
+    log_dir: PathBuf,
+    date_writer: Option<(NaiveDate, BufWriter<File>)>,
+}
+
+impl LogWriter {
+    pub async fn new(server: &Server) -> Result<Self, std::io::Error> {
+        let data_dir = environment::data_dir();
+
+        let log_dir =
+            data_dir.join("irc_protocol_logs").join(server.to_string());
+
+        if !log_dir.exists() {
+            fs::create_dir_all(&log_dir).await?;
+        }
+
+        Ok(Self {
+            log_dir,
+            date_writer: None,
+        })
+    }
+
+    pub async fn write(&mut self, message: CodecLog) {
+        let now = Local::now();
+        let today = now.date_naive();
+
+        if let Some((date, writer)) = &mut self.date_writer {
+            if today != *date {
+                let _ = writer.flush().await;
+
+                self.create_date_writer(today).await;
+            }
+        } else {
+            self.create_date_writer(today).await;
+        }
+
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer
+                .write_all(LogWriter::format(message, now).as_bytes())
+                .await;
+        }
+    }
+
+    async fn create_date_writer(&mut self, date: NaiveDate) {
+        let log_file = date.format("%Y-%m-%d.log").to_string();
+
+        self.date_writer = File::options()
+            .append(true)
+            .create(true)
+            .open(self.log_dir.join(log_file))
+            .await
+            .ok()
+            .map(|writer| (date, BufWriter::new(writer)));
+    }
+
+    fn format(message: CodecLog, received_at: DateTime<Local>) -> String {
+        let (message_content, direction) = match message {
+            CodecLog::Received(content) => (content, "RECEIVED"),
+            CodecLog::Sent(content) => (content, "  SENT  "),
+        };
+
+        format!(
+            "{} {} -- {}",
+            received_at.format("%H:%M:%S%.3f"),
+            direction,
+            message_content
+        )
+    }
+
+    pub async fn flush(&mut self) {
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer.flush().await;
+        }
+    }
 }
 
 struct Batch {

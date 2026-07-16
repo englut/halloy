@@ -1100,6 +1100,27 @@ override_url = "https://libera.chat/static/img/libera-color.svg"
 do_not_request = [ "labeled-response" ]
 ```
 
+## `log_irc_protocol`
+
+Log **all** IRC messages received from and sent to and the server (logged messages may contain sensitive information and will be stored in plain text).  Log files can be found in:
+
+* Windows: `%AppData%\Roaming\halloy\irc_protocol_logs\<name>\`
+* Mac: `~/Library/Application Support/halloy/irc_protocol_logs/<name>/` or `$HOME/.local/share/halloy/irc_protocol_logs/<name>/`
+* Linux: `$XDG_DATA_HOME/halloy/irc_protocol_logs/<name>/`, `$HOME/.local/share/halloy/irc_protocol_logs/<name>/`, or `$HOME/.var/app/org.squidowl.halloy/data/halloy/irc_protocol_logs/<name>/` (Flatpak)
+
+::: warning
+Changing this setting will trigger a disconnect→reconnect if the connection to the server is active.
+:::
+
+```toml
+# Type: boolean
+# Values: true, false
+# Default: false
+
+[servers.<name>]
+log_irc_protocol = true
+```
+
 [^1]: Windows path strings should usually be specified as literal strings (e.g. `'C:\Users\Default\'`), otherwise directory separators will need to be escaped (e.g. `"C:\\Users\\Default\\"`).
 
 [^2]: Relative paths are prefixed with the config directory (i.e. if you have your config.toml in `/home/me/.config/halloy/config.toml`, path `.passwd/libera` will be converted to `/home/me/.config/halloy/.passwd/libera`).
