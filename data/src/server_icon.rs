@@ -3,6 +3,7 @@ use std::io;
 use std::sync::Arc;
 
 use iced::Task;
+use reqwest::header;
 use sha2::{Digest, Sha256};
 use tokio::fs;
 use url::Url;
@@ -209,11 +210,25 @@ async fn fetch(
     http_client: Arc<reqwest::Client>,
     cache: &FileCache,
 ) -> Result<Image, LoadError> {
-    let mut resp = http_client
-        .get(url.clone())
-        .send()
-        .await?
-        .error_for_status()?;
+    let mut req = http_client.get(url.clone());
+
+    // Accept images; prefer known-supported IANA-registered types
+    // https://www.iana.org/assignments/media-types/media-types.xhtml#image
+    req = req.header(
+        header::ACCEPT,
+        "image/avif,\
+         image/bmp,\
+         image/gif,\
+         image/vnd.microsoft.icon,\
+         image/jpeg,\
+         image/png,\
+         image/svg+xml,\
+         image/tiff,\
+         image/webp,\
+         image/*;q=0.8",
+    );
+
+    let mut resp = req.send().await?.error_for_status()?;
 
     let Some(first_chunk) = resp.chunk().await? else {
         return Err(LoadError::EmptyBody);

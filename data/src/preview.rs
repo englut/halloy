@@ -387,6 +387,24 @@ async fn fetch(
         .get(url.clone())
         .timeout(Duration::from_millis(config.request.timeout_ms));
 
+    // Accept HTML and images; for images, prefer known-supported
+    // IANA-registered types
+    // https://www.iana.org/assignments/media-types/media-types.xhtml#image
+    req = req.header(
+        header::ACCEPT,
+        "text/html,\
+         image/avif,\
+         image/bmp,\
+         image/gif,\
+         image/vnd.microsoft.icon,\
+         image/jpeg,\
+         image/png,\
+         image/svg+xml,\
+         image/tiff,\
+         image/webp,\
+         image/*;q=0.8",
+    );
+
     if let Ok(user_agent) = HeaderValue::from_str(&config.request.user_agent) {
         req = req.header(header::USER_AGENT, user_agent);
     }
