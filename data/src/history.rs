@@ -1501,13 +1501,10 @@ pub fn insert_message(
         if let Some(index) = messages[start_index..end_index]
             .iter()
             .enumerate()
-            .find_map(|(slice_index, message)| {
-                message
-                    .id
-                    .as_ref()
-                    .is_some_and(|id| {
-                        *id == labeled_response_context.label_as_id
-                    })
+            .find_map(|(slice_index, stored)| {
+                (stored.id.as_ref().is_some_and(|id| {
+                    *id == labeled_response_context.label_as_id
+                }) && stored.target == message.target)
                     .then_some(start_index + slice_index)
             })
         {

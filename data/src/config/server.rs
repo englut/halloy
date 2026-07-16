@@ -10,6 +10,7 @@ use tokio::process::Command;
 
 use self::filehost::Filehost;
 use self::icon::Icon;
+use crate::capabilities::Capability;
 use crate::config::inclusivities::{
     Inclusivities, is_target_channel_included, is_target_query_included,
 };
@@ -133,18 +134,25 @@ pub struct Server {
     pub who_poll_interval: Duration,
     /// A list of nicknames to monitor (if MONITOR is supported by the server).
     pub monitor: Vec<String>,
-    pub chathistory: bool,
+    /// Whether to automatically make chathistory requests on the user's behalf
+    #[serde(alias = "chathistory")]
+    pub automated_chathistory: bool,
+    /// Flood protection settings, to help the user avoid sending too many messages too quickly.
     #[serde(deserialize_with = "deserialize_anti_flood")]
     pub anti_flood: Duration,
     #[serde(skip)]
     pub order: u16,
     pub proxy: Option<config::Proxy>,
     pub confirm_message_delivery: ConfirmMessageDelivery,
+    /// Whether to automatically connect to the server on launch.
     pub autoconnect: bool,
     pub typing: OptionalTyping,
     pub filehost: Filehost,
+    /// The key-value pairs for the user's metadata.
     pub metadata: HashMap<metadata::Key, String>,
     pub icon: Icon,
+    /// A list of capabilities not to request from the server (even if present).
+    pub do_not_request: Vec<Capability>,
 }
 
 impl Server {
@@ -268,7 +276,7 @@ impl Default for Server {
             who_poll_enabled: true,
             who_poll_interval: Duration::from_secs(2),
             monitor: Vec::default(),
-            chathistory: true,
+            automated_chathistory: true,
             anti_flood: Duration::from_millis(2000),
             order: 0,
             proxy: None,
@@ -278,6 +286,7 @@ impl Default for Server {
             filehost: Filehost::default(),
             metadata: HashMap::default(),
             icon: Icon::default(),
+            do_not_request: vec![],
         }
     }
 }

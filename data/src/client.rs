@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::binary_heap::PeekMut;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
@@ -350,8 +351,23 @@ impl Client {
         from_modal: bool,
     ) -> Vec<Event> {
         if self.registration_step == RegistrationStep::Complete {
+            let requested =
+                if config.do_not_request != self.config.do_not_request {
+                    self.capabilities.create_update_requested(&config)
+                } else {
+                    vec![]
+                };
+
+            if !requested.is_empty() {
+                for message in group_capability_requests(&requested) {
+                    let _ = self.handle.try_send(message);
+                }
+            }
+
             // TODO: allow from_modal when modal matching to bouncer networks is added.
-            if !self.capabilities.acknowledged(Capability::BouncerNetworks) {
+            if !self.capabilities.acknowledged(Capability::BouncerNetworks)
+                || config.do_not_request.contains(&Capability::BouncerNetworks)
+            {
                 self.join(
                     &config
                         .channels
@@ -453,10 +469,12 @@ impl Client {
                 }
             }
 
-            if (!config.metadata.is_empty() || !self.config.metadata.is_empty())
-                && config.metadata != self.config.metadata
-            {
-                if self.capabilities.acknowledged(Capability::Metadata) {
+            if config.metadata != self.config.metadata {
+                if self.capabilities.acknowledged(Capability::Metadata)
+                    && !config
+                        .do_not_request
+                        .contains(&Capability::BouncerNetworks)
+                {
                     self.send(
                         None,
                         command!(
@@ -1073,6 +1091,9 @@ impl Client {
                                     ))
                                 })
                             }
+                            Some("labeled-response") => {
+                                Some(BatchKind::LabeledResponse)
+                            }
                             _ => None,
                         };
 
@@ -1201,6 +1222,7 @@ impl Client {
                                         _,
                                     ))
                                     | Some(BatchKind::ZncPlayback(_))
+                                    | Some(BatchKind::LabeledResponse)
                                     | None => (),
                                 };
 
@@ -1233,9 +1255,9 @@ impl Client {
                             self.handle_multiline(message, batch_tag);
                             vec![]
                         }
-                        Some(BatchKind::ChathistoryTargets) | None => {
-                            self.handle(message, context, config)?
-                        }
+                        Some(BatchKind::ChathistoryTargets)
+                        | Some(BatchKind::LabeledResponse)
+                        | None => self.handle(message, context, config)?,
                         Some(BatchKind::ZncPlayback(batch_target)) => self
                             .handle_znc_playback(message, batch_target.clone()),
                     };
@@ -1341,7 +1363,7 @@ impl Client {
                 // Finished
                 if asterisk.is_none() {
                     let requested =
-                        self.capabilities.create_requested(&self.config);
+                        self.capabilities.create_new_requested(&self.config);
 
                     if !requested.is_empty() {
                         // Request
@@ -1418,7 +1440,7 @@ impl Client {
                 self.capabilities.extend_list(caps.split(' '));
 
                 let requested =
-                    self.capabilities.create_requested(&self.config);
+                    self.capabilities.create_new_requested(&self.config);
 
                 if !requested.is_empty() {
                     for message in group_capability_requests(&requested) {
@@ -3707,7 +3729,10 @@ impl Client {
         subcommand: ChatHistorySubcommand,
         priority: TokenPriority,
     ) {
-        if self.capabilities.acknowledged(Capability::Chathistory) {
+        if self.capabilities.acknowledged(Capability::Chathistory)
+            && (matches!(priority, TokenPriority::User)
+                || self.config.automated_chathistory)
+        {
             if let Some(target) = subcommand.target() {
                 if self.pending_chathistory_requests.contains_key(target) {
                     return;
@@ -5554,7 +5579,9 @@ impl Context {
                 )
             }
             Command::BATCH(_, params)
-                if params.iter().any(|param| param == "draft/multiline") =>
+                if params.iter().any(|param| {
+                    param == "draft/multiline" || param == "labeled-response"
+                }) =>
             {
                 Self::PrivOrNotice(
                     buffer,
@@ -5607,6 +5634,7 @@ pub enum BatchKind {
         String,
     ),
     ZncPlayback(Target),
+    LabeledResponse,
 }
 
 impl BatchKind {
@@ -5615,7 +5643,7 @@ impl BatchKind {
             Self::ChathistoryTarget(batch_target)
             | Self::Multiline(_, _, batch_target, _, _)
             | Self::ZncPlayback(batch_target) => Some(batch_target.clone()),
-            Self::ChathistoryTargets => None,
+            Self::ChathistoryTargets | Self::LabeledResponse => None,
         }
     }
 }
@@ -5790,7 +5818,7 @@ impl PartialEq for MetadataSync {
 impl Eq for MetadataSync {}
 
 fn group_capability_requests<'a>(
-    capabilities: &'a [&'a str],
+    capabilities: &'a [Cow<'static, str>],
 ) -> impl Iterator<Item = proto::Message> + 'a {
     const MAX_LEN: usize = proto::format::BYTE_LIMIT - b"CAP REQ :\r\n".len();
 
