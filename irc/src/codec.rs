@@ -2,7 +2,7 @@ use std::io;
 
 use bytes::BytesMut;
 use proto::{Message, format, parse};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::codec::{Decoder, Encoder};
 
 pub type ParseResult<T = Message, E = parse::Error> = std::result::Result<T, E>;
@@ -14,11 +14,11 @@ pub type ParseResult<T = Message, E = parse::Error> = std::result::Result<T, E>;
 const MAX_LINE_LENGTH: usize = 16 * 1024;
 
 pub struct Codec {
-    logger: Option<Sender<CodecLog>>,
+    logger: Option<UnboundedSender<CodecLog>>,
 }
 
 impl Codec {
-    pub fn new(logger: Option<Sender<CodecLog>>) -> Self {
+    pub fn new(logger: Option<UnboundedSender<CodecLog>>) -> Self {
         Self { logger }
     }
 }
@@ -36,7 +36,7 @@ impl Decoder for Codec {
             // buffer the "line" without bound, exhausting memory from a single connection.
             if src.len() > MAX_LINE_LENGTH {
                 if let Some(logger) = &self.logger {
-                    let _ = logger.try_send(CodecLog::Received(
+                    let _ = logger.send(CodecLog::Received(
                         String::from_utf8_lossy(src).to_string(),
                     ));
                 }
@@ -49,7 +49,7 @@ impl Decoder for Codec {
         let bytes = src.split_to(pos + 2);
 
         if let Some(logger) = &self.logger {
-            let _ = logger.try_send(CodecLog::Received(
+            let _ = logger.send(CodecLog::Received(
                 String::from_utf8_lossy(&bytes).to_string(),
             ));
         }
@@ -71,7 +71,7 @@ impl Encoder<Message> for Codec {
         let bytes = encoded.into_bytes();
 
         if let Some(logger) = &self.logger {
-            let _ = logger.try_send(CodecLog::Sent(
+            let _ = logger.send(CodecLog::Sent(
                 String::from_utf8_lossy(&bytes).to_string(),
             ));
         }

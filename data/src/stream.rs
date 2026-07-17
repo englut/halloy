@@ -606,7 +606,7 @@ async fn connect(
     proxy: Option<config::Proxy>,
 ) -> Result<(Stream, Client), connection::Error> {
     let logger = if config.log_irc_protocol {
-        let (sender, receiver) = tokio::sync::mpsc::channel(100);
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
 
         tokio::task::spawn(log_codec(server.clone(), receiver));
 
@@ -637,15 +637,15 @@ async fn connect(
 
 async fn log_codec(
     server: Server,
-    mut receiver: tokio::sync::mpsc::Receiver<CodecLog>,
+    mut receiver: tokio::sync::mpsc::UnboundedReceiver<CodecLog>,
 ) {
     let log_writer = LogWriter::new(&server).await;
 
     match log_writer {
         Ok(mut log_writer) => {
-            let mut timeout_receive = false;
+            let mut set_timeout_to_flush = false;
 
-            while let Some(action) = if timeout_receive {
+            while let Some(action) = if set_timeout_to_flush {
                 tokio::time::timeout(
                     Duration::from_millis(500),
                     receiver.recv(),
@@ -658,11 +658,11 @@ async fn log_codec(
                 match action {
                     Ok(message) => {
                         log_writer.write(message).await;
-                        timeout_receive = true;
+                        set_timeout_to_flush = true;
                     }
                     Err(_) => {
                         log_writer.flush().await;
-                        timeout_receive = false;
+                        set_timeout_to_flush = false;
                     }
                 }
             }
