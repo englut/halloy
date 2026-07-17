@@ -1988,14 +1988,11 @@ fn handle_client_events(
             }
             Event::AuthenticationFailed(error) => {
                 for bouncer_network in servers.get_bouncer_networks(server) {
-                    controllers.disconnect(
-                        bouncer_network,
-                        error.clone(),
-                        false,
-                    );
+                    controllers
+                        .authentication_failed(bouncer_network, error.clone());
                 }
 
-                controllers.disconnect(server, error, false);
+                controllers.authentication_failed(server, error);
             }
             Event::Reaction {
                 message,

@@ -68,7 +68,6 @@ enum State {
     Disconnected {
         autoconnect: bool,
         retry: Interval,
-        connection_attempt: u16,
     },
     Connected {
         stream: Stream,
@@ -93,6 +92,9 @@ pub enum Control {
     Disconnect {
         error: Option<String>,
         disable_autoconnect: bool,
+    },
+    AuthenticationFailed {
+        error: Option<String>,
     },
     Connect(bool),
     DisableAutoconnect,
@@ -134,10 +136,14 @@ async fn _run(
     });
 
     let mut is_initial = true;
+
+    // Needs to be tracked across states as connection can fail during
+    // authentication
+    let mut connection_attempt = 0;
+
     let mut state = State::Disconnected {
         autoconnect: config.autoconnect,
         retry: time::interval(config.reconnect_delay),
-        connection_attempt: 0,
     };
 
     // Notify app of initial disconnected state
@@ -151,11 +157,7 @@ async fn _run(
 
     loop {
         match &mut state {
-            State::Disconnected {
-                autoconnect,
-                retry,
-                connection_attempt,
-            } => {
+            State::Disconnected { autoconnect, retry } => {
                 let selection = {
                     if *autoconnect {
                         stream::select(
@@ -184,7 +186,6 @@ async fn _run(
                         state = State::Disconnected {
                             autoconnect: config.autoconnect,
                             retry: time::interval(config.reconnect_delay),
-                            connection_attempt: *connection_attempt,
                         };
                     }
                     Some(Control::Disconnect {
@@ -206,10 +207,10 @@ async fn _run(
                     }
                     Some(Control::Connect(automated)) => {
                         if automated {
-                            *connection_attempt += 1;
+                            connection_attempt += 1;
                         } else {
                             *autoconnect = config.autoconnect;
-                            *connection_attempt = 1;
+                            connection_attempt = 1;
                         }
 
                         let _ = sender.unbounded_send(Update::Connecting {
@@ -266,7 +267,7 @@ async fn _run(
 
                                 retry.reset();
 
-                                if *connection_attempt
+                                if connection_attempt
                                     >= config.max_connection_attempts
                                 {
                                     *autoconnect = false;
@@ -286,7 +287,7 @@ async fn _run(
                     Some(Control::End(_)) => {
                         state = State::End;
                     }
-                    None => (),
+                    Some(Control::AuthenticationFailed { .. }) | None => (),
                 }
             }
             State::Connected {
@@ -355,6 +356,7 @@ async fn _run(
                         }
                         proto::Command::ERROR(error) => {
                             let autoconnect = !quit_requested.is_some();
+                            connection_attempt = 0;
 
                             if quit_requested.is_some() {
                                 let _ = sender.unbounded_send(
@@ -376,10 +378,10 @@ async fn _run(
                                         Instant::now() + config.reconnect_delay,
                                         config.reconnect_delay,
                                     ),
-                                    connection_attempt: 0,
                                 };
                             } else {
                                 log::info!("[{server}] disconnected: {error}");
+
                                 let _ = sender.unbounded_send(
                                     Update::Disconnected {
                                         server: server.clone(),
@@ -395,7 +397,6 @@ async fn _run(
                                         Instant::now() + config.reconnect_delay,
                                         config.reconnect_delay,
                                     ),
-                                    connection_attempt: 0,
                                 };
                             }
                         }
@@ -408,7 +409,10 @@ async fn _run(
                     }
                     Input::IrcMessage(Err(e)) => {
                         log::info!("[{server}] disconnected: {e}");
+
                         let autoconnect = quit_requested.is_none();
+                        connection_attempt = 0;
+
                         let _ = sender.unbounded_send(Update::Disconnected {
                             server: server.clone(),
                             is_initial,
@@ -422,7 +426,6 @@ async fn _run(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
                             ),
-                            connection_attempt: 0,
                         };
                     }
                     Input::Batch(messages) => {
@@ -460,7 +463,10 @@ async fn _run(
                     }
                     Input::PingTimeout => {
                         log::info!("[{server}] ping timeout");
+
                         let autoconnect = quit_requested.is_none();
+                        connection_attempt = 0;
+
                         let _ = sender.unbounded_send(Update::Disconnected {
                             server: server.clone(),
                             is_initial,
@@ -474,7 +480,6 @@ async fn _run(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
                             ),
-                            connection_attempt: 0,
                         };
                     }
                     Input::Control(control) => match control {
@@ -483,37 +488,13 @@ async fn _run(
                             updated_default_proxy,
                         ) => {
                             // If connection detail(s) change, then disconnect
-                            if config.server != updated_config.server
-                                || config.port != updated_config.port
-                                || config.use_tls != updated_config.use_tls
-                                || config.use_websocket
-                                    != updated_config.use_websocket
-                                || config.websocket_path
-                                    != updated_config.websocket_path
-                                || config.dangerously_accept_invalid_certs
-                                    != updated_config
-                                        .dangerously_accept_invalid_certs
-                                || config.root_cert_path
-                                    != updated_config.root_cert_path
-                                || config
-                                    .proxy
-                                    .as_ref()
-                                    .or(default_proxy.as_ref())
-                                    != updated_config
-                                        .proxy
-                                        .as_ref()
-                                        .or(updated_default_proxy.as_ref())
-                                || config.username != updated_config.username
-                                || config.password != updated_config.password
-                                || config.password_file
-                                    != updated_config.password_file
-                                || config.password_file_first_line_only
-                                    != updated_config
-                                        .password_file_first_line_only
-                                || config.password_command
-                                    != updated_config.password_command
-                                || config.sasl != updated_config.sasl
-                            {
+                            if updated_config.has_same_connection_settings(
+                                updated_default_proxy.as_ref(),
+                                &config,
+                                default_proxy.as_ref(),
+                            ) {
+                                connection_attempt = 0;
+
                                 let _ = sender.unbounded_send(
                                     Update::Disconnected {
                                         server: server.clone(),
@@ -529,7 +510,6 @@ async fn _run(
                                         Instant::now() + Duration::from_secs(1),
                                         config.reconnect_delay,
                                     ),
-                                    connection_attempt: 0,
                                 };
                             } else {
                                 let _ = sender.unbounded_send(
@@ -544,11 +524,10 @@ async fn _run(
                             default_proxy = updated_default_proxy;
                         }
                         Control::Connect(_) | Control::DisableAutoconnect => (),
-                        Control::Disconnect {
-                            error,
-                            disable_autoconnect,
-                        } => {
-                            let autoconnect = if disable_autoconnect {
+                        Control::AuthenticationFailed { error } => {
+                            let autoconnect = if connection_attempt
+                                >= config.max_connection_attempts
+                            {
                                 false
                             } else {
                                 config.autoconnect
@@ -568,7 +547,33 @@ async fn _run(
                                     Instant::now() + config.reconnect_delay,
                                     config.reconnect_delay,
                                 ),
-                                connection_attempt: 0,
+                            };
+                        }
+                        Control::Disconnect {
+                            error,
+                            disable_autoconnect,
+                        } => {
+                            let autoconnect = if disable_autoconnect {
+                                false
+                            } else {
+                                config.autoconnect
+                            };
+                            connection_attempt = 0;
+
+                            let _ =
+                                sender.unbounded_send(Update::Disconnected {
+                                    server: server.clone(),
+                                    is_initial,
+                                    error,
+                                    sent_time: Utc::now(),
+                                    autoconnect,
+                                });
+                            state = State::Disconnected {
+                                autoconnect,
+                                retry: time::interval_at(
+                                    Instant::now() + config.reconnect_delay,
+                                    config.reconnect_delay,
+                                ),
                             };
                         }
                         Control::End(reason) => {
@@ -697,17 +702,14 @@ impl Map {
         }
     }
 
-    pub fn disconnect(
+    pub fn authentication_failed(
         &mut self,
         server: &Server,
         error: Option<String>,
-        disable_autoconnect: bool,
     ) {
         if let Some(controller) = self.0.get_mut(server) {
-            let _ = controller.try_send(Control::Disconnect {
-                error,
-                disable_autoconnect,
-            });
+            let _ =
+                controller.try_send(Control::AuthenticationFailed { error });
         }
     }
 
