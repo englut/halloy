@@ -359,7 +359,7 @@ async fn _run(
                             sent_time: Utc::now(),
                         });
                         state = State::Disconnected {
-                            autoconnect: true,
+                            autoconnect: quit_requested.is_none(),
                             retry: time::interval_at(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,
@@ -408,7 +408,7 @@ async fn _run(
                             sent_time: Utc::now(),
                         });
                         state = State::Disconnected {
-                            autoconnect: true,
+                            autoconnect: quit_requested.is_none(),
                             retry: time::interval_at(
                                 Instant::now() + config.reconnect_delay,
                                 config.reconnect_delay,

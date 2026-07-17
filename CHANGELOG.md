@@ -21,6 +21,7 @@ Added:
 - New `sidebar.highlight_indicator.title`, `sidebar.highlight_indicator.show_on_open_buffers`, `sidebar.highlight_indicator.exclude`, and `sidebar.highlight_indicator.include` settings for independent highlight control
 - Context menu on channel links
 - Shortcuts displayed in pane button tooltips (where available/configured)
+- `servers.<name>.do_not_request` can be specified to prevent IRCv3 capability requests (e.g. `servers.<name>.do_not_request = [ "labeled-response" ]` will prevent [labeled-response](https://ircv3.net/specs/extensions/labeled-response) from being requested from the server)
 
 Fixed:
 
@@ -45,6 +46,8 @@ Fixed:
 - Allow sound files to be symbolic links
 - Queries specified in configuration correctly added to the sidebar
 - Apply mode arguments to the correct targets when a `MODE` message mixes added and removed modes (e.g. `-o+v foo bar` de-ops `foo` and voices `bar`)
+- Do not reconnect automatically when the server closes the connection in response to a requested quit
+- Don't show a transient terminal window when running `/exec` on Windows
 
 Changed:
 
@@ -54,6 +57,7 @@ Changed:
 - Renamed `sidebar.font_size` → `sidebar.secondary_font_size` to reflect its relationship to `sidebar.primary_font_size`
 - Renamed `actions.buffer.local` → `actions.buffer.open_internal` to match naming convention used elsewhere
 - Renamed `actions.buffer.click_username` to `actions.buffer.click_nickname` for more consistent terminology
+- Renamed `servers.<name>.chathistory` to `servers.<name>.automated_chathistory`, and it now controls whether chathistory requests are made automatically instead of controlling whether the chathistory capability is requested (see `servers.<name>.do_not_request` for controlling whether the capability is requested)
 - Moved functionality from `buffer.nickname.click` → `actions.buffer.click_nickname` and `buffer.channel.nicklist.click` → `actions.nicklist.click_nickname`
 - Clicking on a message expanded out of a condensed message will always contract it (configurable via `actions.only_contract_expanded_message`)
 - Windows release artifacts are signed using SignPath
@@ -62,8 +66,8 @@ Changed:
 
 Thanks:
 
-- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt
-- Bug reports: @luca020400, agent314, flooferland, @englut
+- Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
+- Bug reports: @luca020400, agent314, @FlooferLand, @englut
 
 # 2026.7.2 (2026-06-08)
 
