@@ -282,10 +282,11 @@ impl Parser for User {
     }
 }
 
-enum ModeSet<'a> {
-    Plus(&'a str),
-    Minus(&'a str),
-    None(&'a str),
+#[derive(Clone, Copy, PartialEq)]
+enum Sign {
+    Plus,
+    Minus,
+    None,
 }
 
 pub fn parse<T>(
@@ -300,50 +301,38 @@ where
     let mut args = args.iter();
     let mut parsed = vec![];
 
-    let mode_sets = match (encoded.find('+'), encoded.find('-')) {
-        (None, None) => vec![ModeSet::None(encoded)],
-        (None, Some(i)) => vec![ModeSet::Minus(&encoded[i + 1..])],
-        (Some(i), None) => vec![ModeSet::Plus(&encoded[i + 1..])],
-        (Some(p), Some(m)) => {
-            let end_plus = if p > m { encoded.len() } else { m };
-            let end_minus = if m > p { encoded.len() } else { p };
+    // Each sign applies to the mode letters that follow it until the next
+    // sign, and arguments are consumed in the same order the modes are
+    // given (e.g. `-o+v foo bar` de-ops foo and voices bar).
+    let mut sign = Sign::None;
 
-            vec![
-                ModeSet::Plus(&encoded[p + 1..end_plus]),
-                ModeSet::Minus(&encoded[m + 1..end_minus]),
-            ]
-        }
-    };
+    for c in encoded.chars() {
+        match c {
+            '+' => sign = Sign::Plus,
+            '-' => sign = Sign::Minus,
+            _ => {
+                let value = T::from_char(
+                    prefix
+                        .iter()
+                        .find_map(|prefix_map| {
+                            (prefix_map.mode == c).then_some(prefix_map.prefix)
+                        })
+                        .unwrap_or(c),
+                );
+                let arg = if takes_arg(c, sign, chanmodes, prefix) {
+                    args.next().cloned()
+                } else {
+                    None
+                };
 
-    for mode_set in mode_sets {
-        let modes = match mode_set {
-            ModeSet::Plus(s) => s,
-            ModeSet::Minus(s) => s,
-            ModeSet::None(s) => s,
-        };
+                let mode = match sign {
+                    Sign::Plus => Mode::Add(value, arg),
+                    Sign::Minus => Mode::Remove(value, arg),
+                    Sign::None => Mode::NoPrefix(value),
+                };
 
-        for c in modes.chars() {
-            let value = T::from_char(
-                prefix
-                    .iter()
-                    .find_map(|prefix_map| {
-                        (prefix_map.mode == c).then_some(prefix_map.prefix)
-                    })
-                    .unwrap_or(c),
-            );
-            let arg = if takes_arg(c, &mode_set, chanmodes, prefix) {
-                args.next().cloned()
-            } else {
-                None
-            };
-
-            let mode = match mode_set {
-                ModeSet::Plus(_) => Mode::Add(value, arg),
-                ModeSet::Minus(_) => Mode::Remove(value, arg),
-                ModeSet::None(_) => Mode::NoPrefix(value),
-            };
-
-            parsed.push(mode);
+                parsed.push(mode);
+            }
         }
     }
 
@@ -352,7 +341,7 @@ where
 
 fn takes_arg(
     mode: char,
-    mode_set: &ModeSet,
+    sign: Sign,
     chanmodes: &[isupport::ModeKind],
     prefix: &[isupport::PrefixMap],
 ) -> bool {
@@ -364,9 +353,9 @@ fn takes_arg(
         }
     }) {
         match kind {
-            'A' => Some(!matches!(mode_set, ModeSet::None(_))),
+            'A' => Some(sign != Sign::None),
             'B' => Some(true),
-            'C' => Some(matches!(mode_set, ModeSet::Plus(_))),
+            'C' => Some(sign == Sign::Plus),
             'D' => Some(false),
             _ => None,
         }
@@ -396,14 +385,44 @@ mod test {
             (
                 "-rb+i",
                 vec!["*@192.168.0.1".into()],
-                // Adds are parsed first
                 vec![
-                    Mode::Add(Channel::InviteOnly, None),
                     Mode::Remove(Channel::RegisteredOnly, None),
                     Mode::Remove(Channel::Ban, Some("*@192.168.0.1".into())),
+                    Mode::Add(Channel::InviteOnly, None),
                 ],
             ),
             ("b", vec![], vec![Mode::NoPrefix(Channel::Ban)]),
+            // Args must pair up with modes in the order they are given
+            (
+                "-o+v",
+                vec!["alice".into(), "bob".into()],
+                vec![
+                    Mode::Remove(Channel::Oper, Some("alice".into())),
+                    Mode::Add(Channel::Voice, Some("bob".into())),
+                ],
+            ),
+            // Signs may repeat multiple times
+            (
+                "+o-v+t",
+                vec!["alice".into(), "bob".into()],
+                vec![
+                    Mode::Add(Channel::Oper, Some("alice".into())),
+                    Mode::Remove(Channel::Voice, Some("bob".into())),
+                    Mode::Add(Channel::ProtectedTopic, None),
+                ],
+            ),
+            // Type B modes always take an arg, type C only when added,
+            // type A only when signed
+            (
+                "+kl-bl",
+                vec!["hunter2".into(), "10".into(), "*!*@*".into()],
+                vec![
+                    Mode::Add(Channel::KeyLock, Some("hunter2".into())),
+                    Mode::Add(Channel::Limit, Some("10".into())),
+                    Mode::Remove(Channel::Ban, Some("*!*@*".into())),
+                    Mode::Remove(Channel::Limit, None),
+                ],
+            ),
         ];
 
         let isupport = HashMap::<isupport::Kind, isupport::Parameter>::new();
