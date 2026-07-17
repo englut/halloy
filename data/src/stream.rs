@@ -643,11 +643,31 @@ async fn log_codec(
 
     match log_writer {
         Ok(mut log_writer) => {
-            while let Some(message) = receiver.recv().await {
-                log_writer.write(message).await;
+            let mut timeout_receive = false;
+
+            while let Some(action) = if timeout_receive {
+                tokio::time::timeout(
+                    Duration::from_millis(500),
+                    receiver.recv(),
+                )
+                .await
+                .transpose()
+            } else {
+                receiver.recv().await.map(Ok)
+            } {
+                match action {
+                    Ok(message) => {
+                        log_writer.write(message).await;
+                        timeout_receive = true;
+                    }
+                    Err(_) => {
+                        log_writer.flush().await;
+                        timeout_receive = false;
+                    }
+                }
             }
 
-            log_writer.flush().await;
+            log_writer.shutdown().await;
         }
         Err(error) => {
             log::error!("unable to create log writer for {server}: {error}");
@@ -727,6 +747,14 @@ impl LogWriter {
     pub async fn flush(&mut self) {
         if let Some((_, writer)) = &mut self.date_writer {
             let _ = writer.flush().await;
+        }
+    }
+
+    pub async fn shutdown(&mut self) {
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer.flush().await;
+
+            let _ = writer.shutdown().await;
         }
     }
 }
