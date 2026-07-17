@@ -246,7 +246,8 @@ fn is_consecutive_user_message(
         && prev_message.is_some_and(|prev_message| {
             if duration.is_none_or(|duration| {
                 message.server_time - prev_message.server_time < duration
-            }) && let message::Source::User(user) = message.target.source()
+            }) && message.is_rerouted() == prev_message.is_rerouted()
+                && let message::Source::User(user) = message.target.source()
                 && let message::Source::User(prev_user) =
                     prev_message.target.source()
             {
@@ -354,6 +355,7 @@ pub fn view<'a>(
                             user,
                             config.buffer.nickname.show_access_levels,
                             config.buffer.nickname.show_bot_icon,
+                            message.is_rerouted(),
                             registry,
                             &config.display.nickname,
                             config.buffer.nickname.truncate,

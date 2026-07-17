@@ -63,6 +63,7 @@ Changed:
 - Windows release artifacts are signed using SignPath
 - Set window icon also on Linux for X11
 - `keyboard.file_transfers` shortcut is disabled when `file_transfer.enabled = false`
+- Rerouted messages are marked with a icon next to the nickname
 
 Thanks:
 

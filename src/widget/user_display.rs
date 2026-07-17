@@ -26,6 +26,7 @@ impl UserDisplay {
         user: &User,
         show_access_levels: AccessLevelFormat,
         show_bot_icon: bool,
+        rerouted: bool,
         registry: &dyn metadata::Registry,
         enabled: &[Metadata],
         truncate: Option<u16>,
@@ -46,9 +47,12 @@ impl UserDisplay {
             query,
             show_access_levels,
             show_bot_icon,
+            rerouted,
             registry,
             enabled,
         );
+
+        let has_icon = full.bot_icon || full.reroute_icon;
 
         if let Some(truncated) = truncate.and_then(|truncation_length| {
             full.truncate(truncation_length as usize, truncation_character)
@@ -58,15 +62,14 @@ impl UserDisplay {
                 tooltip: with_tooltip.then_some(full),
                 color,
             }
-        } else if full.bot_icon && brackets.is_some() {
+        } else if has_icon && brackets.is_some() {
             Self {
                 base: full.clone().bracket(brackets),
                 tooltip: with_tooltip.then_some(full),
                 color,
             }
         } else {
-            let tooltip =
-                (with_tooltip && full.bot_icon).then_some(full.clone());
+            let tooltip = (with_tooltip && has_icon).then_some(full.clone());
 
             Self {
                 base: full.bracket(brackets),
@@ -122,9 +125,36 @@ impl UserDisplay {
         };
 
         if let Some(tooltip) = self.tooltip {
+            let mut suffix = String::new();
+
+            if tooltip.bot_icon {
+                suffix.push_str(" is marked as a bot");
+            }
+
+            if tooltip.reroute_icon {
+                suffix.push_str(if suffix.is_empty() {
+                    " is a rerouted message"
+                } else {
+                    " and is a rerouted message"
+                });
+            }
+
             iced::widget::tooltip(
                 base,
-                container(container(if tooltip.bot_icon {
+                container(container(if suffix.is_empty() {
+                    tooltip.into_element(
+                        user,
+                        color,
+                        false,
+                        false,
+                        None,
+                        None,
+                        true,
+                        theme,
+                        config,
+                        iced::widget::text::LineHeight::Relative(1.0),
+                    )
+                } else {
                     row![
                         tooltip.into_element(
                             user,
@@ -138,27 +168,12 @@ impl UserDisplay {
                             config,
                             iced::widget::text::LineHeight::Relative(1.0),
                         ),
-                        text(String::from(" is marked as a bot"))
-                            .style(theme::text::secondary)
-                            .line_height(
-                                iced::widget::text::LineHeight::Relative(1.0),
-                            )
+                        text(suffix).style(theme::text::secondary).line_height(
+                            iced::widget::text::LineHeight::Relative(1.0),
+                        )
                     ]
                     .spacing(theme::ICON_SPACE)
                     .into()
-                } else {
-                    tooltip.into_element(
-                        user,
-                        color,
-                        false,
-                        false,
-                        None,
-                        None,
-                        true,
-                        theme,
-                        config,
-                        iced::widget::text::LineHeight::Relative(1.0),
-                    )
                 }))
                 .style(theme::container::tooltip)
                 .padding(8),
@@ -180,6 +195,7 @@ impl UserDisplay {
 pub struct UserDisplayData {
     left: String,
     bot_icon: bool,
+    reroute_icon: bool,
     right: Option<String>,
 }
 
@@ -189,6 +205,7 @@ impl UserDisplayData {
         query: Query,
         show_access_levels: AccessLevelFormat,
         show_bot_icon: bool,
+        reroute_icon: bool,
         registry: &dyn metadata::Registry,
         enabled: &[Metadata],
     ) -> Self {
@@ -255,6 +272,7 @@ impl UserDisplayData {
             Self {
                 left,
                 bot_icon,
+                reroute_icon,
                 right,
             }
         } else {
@@ -276,6 +294,7 @@ impl UserDisplayData {
             Self {
                 left,
                 bot_icon,
+                reroute_icon,
                 right: None,
             }
         }
@@ -340,21 +359,30 @@ impl UserDisplayData {
                 }
             };
 
-        if self.bot_icon {
-            let icon: Element<M> = if selectable {
-                widget::bot_icon(move |_| style)
+        let icon_piece = |unicode: char| -> Element<'a, M> {
+            if selectable {
+                selectable_text(unicode.to_string())
+                    .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                    .font(*font::ICON)
+                    .style(move |_| style)
+                    .size(theme::ICON_SIZE)
+                    .into()
             } else {
-                widget::text(String::from("\u{1F916}"))
+                widget::text(unicode.to_string())
                     .color_maybe(style.color)
                     .line_height(line_height)
                     .font(*font::ICON)
                     .size(theme::ICON_SIZE)
                     .into()
-            };
+            }
+        };
+
+        if self.bot_icon || self.reroute_icon {
             row![
                 text_piece(self.left, font.clone()),
-                icon,
+                self.bot_icon.then(|| icon_piece('\u{1F916}')),
                 self.right.map(|right| text_piece(right, font)),
+                self.reroute_icon.then(|| icon_piece('\u{E800}')),
             ]
             .spacing(theme::ICON_SPACE)
             .align_y(Vertical::Center)
@@ -374,6 +402,10 @@ impl UserDisplayData {
                 width += theme::ICON_SPACE
                     + font::width_from_str(right.as_str(), &config.font);
             }
+        }
+
+        if self.reroute_icon {
+            width += theme::ICON_SPACE + theme::ICON_SIZE;
         }
 
         width
@@ -396,6 +428,7 @@ impl UserDisplayData {
                         .collect::<String>()
                 ),
                 bot_icon: false,
+                reroute_icon: self.reroute_icon,
                 right: None,
             });
         } else if self.bot_icon {
@@ -406,6 +439,7 @@ impl UserDisplayData {
                         self.left.as_str()
                     ),
                     bot_icon: false,
+                    reroute_icon: self.reroute_icon,
                     right: None,
                 });
             } else {
@@ -424,6 +458,7 @@ impl UserDisplayData {
                     return Some(Self {
                         left: self.left.clone(),
                         bot_icon: true,
+                        reroute_icon: self.reroute_icon,
                         right: self.right.as_ref().map(|right| {
                             format!(
                                 "{}{truncation_character}",
@@ -454,6 +489,7 @@ impl UserDisplayData {
                 UserDisplayData {
                     left: format!("{}{}", brackets.left, self.left),
                     bot_icon: true,
+                    reroute_icon: self.reroute_icon,
                     right: Some(
                         self.right
                             .map(|right| format!("{right}{}", brackets.right))
@@ -467,6 +503,7 @@ impl UserDisplayData {
                         brackets.left, self.left, brackets.right
                     ),
                     bot_icon: false,
+                    reroute_icon: self.reroute_icon,
                     right: None,
                 }
             }

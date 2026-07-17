@@ -217,6 +217,12 @@
       "css": "folder-open-empty",
       "code": 61717,
       "src": "fontawesome"
+    },
+    {
+      "uid": "3d349daaea304032a7669b4f24931b6c",
+      "css": "shuffle",
+      "code": 59392,
+      "src": "entypo"
     }
   ]
 }

@@ -115,6 +115,7 @@ where
                     user,
                     config.buffer.nickname.show_access_levels,
                     config.buffer.nickname.show_bot_icon,
+                    false,
                     registry,
                     &config.display.nickname,
                     None,
