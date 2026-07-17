@@ -2,14 +2,18 @@ use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::config::logs::LevelFilter;
 use crate::environment;
 
 pub fn file() -> Result<fs::File, Error> {
-    let path = path()?;
+    let path = dir()?.join(
+        Local::now()
+            .format("halloy.%Y-%m-%d-%H-%M-%S.log")
+            .to_string(),
+    );
 
     Ok(fs::OpenOptions::new()
         .write(true)
@@ -19,14 +23,37 @@ pub fn file() -> Result<fs::File, Error> {
         .open(path)?)
 }
 
-fn path() -> Result<PathBuf, Error> {
-    let parent = environment::data_dir();
+fn dir() -> Result<PathBuf, Error> {
+    let dir = environment::data_dir().join("logs");
 
-    if !parent.exists() {
-        fs::create_dir_all(&parent)?;
+    if !dir.exists() {
+        fs::create_dir_all(&dir)?;
     }
 
-    Ok(parent.join("halloy.log"))
+    Ok(dir)
+}
+
+pub fn clear(number_of_logs_to_keep: usize) {
+    if let Ok(dir) = dir() {
+        for (index, dir_entry) in walkdir::WalkDir::new(dir)
+            .max_depth(1)
+            .sort_by(|a, b| b.file_name().cmp(a.file_name()))
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|dir_entry| {
+                dir_entry.file_type().is_file()
+                    && dir_entry.file_name().to_str().is_some_and(|file_name| {
+                        file_name.starts_with("halloy.")
+                            && file_name.ends_with(".log")
+                    })
+            })
+            .enumerate()
+        {
+            if index >= number_of_logs_to_keep {
+                let _ = fs::remove_file(dir_entry.path());
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

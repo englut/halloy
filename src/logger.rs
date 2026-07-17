@@ -17,52 +17,119 @@ pub fn setup(
         .as_deref()
         .and_then(|rust_log| str::parse::<log::Level>(rust_log).ok());
 
-    let file_level_filter = env_rust_log
-        .map_or(log::LevelFilter::from(config.file_level), |env| {
-            env.to_level_filter()
-        });
+    let file_sink = file_dispatch(config, env_rust_log);
 
+    let (pane_sink, pane_receiver) = pane_dispatch(env_rust_log);
+
+    let mut dispatch = fern::Dispatch::new().chain(pane_sink);
+
+    if let Some(file_sink) = file_sink {
+        dispatch = dispatch.chain(file_sink);
+    }
+
+    dispatch.apply()?;
+
+    Ok(pane_receiver)
+}
+
+fn file_dispatch(
+    config: config::Logs,
+    env_rust_log: Option<log::Level>,
+) -> Option<fern::Dispatch> {
+    data::log::clear(config.max_file_count.saturating_sub(1));
+
+    if config.max_file_count == 0 {
+        return None;
+    }
+
+    data::log::file().ok().map(|log_file| {
+        let file_level_filter = env_rust_log
+            .map_or(log::LevelFilter::from(config.file_level), |env| {
+                env.to_level_filter()
+            });
+
+        fern::Dispatch::new()
+            .format(|out, message, record| {
+                let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");
+
+                if message
+                    .as_str()
+                    .is_none_or(|message| message.contains('\n'))
+                {
+                    let formatted_message = format!("{message}");
+
+                    let message = if formatted_message.contains('\n') {
+                        let mut lines = formatted_message.lines();
+
+                        let mut message =
+                            lines.next().unwrap_or_default().to_string();
+
+                        for line in lines {
+                            message = format!(
+                                "{message}\n{}{line}",
+                                if line.is_empty() {
+                                    ""
+                                } else {
+                                    // Indent width of format!("{} {:5} -- ", timestamp, record.level())
+                                    "                      "
+                                }
+                            );
+                        }
+
+                        message
+                    } else {
+                        formatted_message
+                    };
+
+                    out.finish(format_args!(
+                        "{} {:>5} -- {}",
+                        timestamp,
+                        record.level(),
+                        message
+                    ));
+
+                    return;
+                }
+
+                out.finish(format_args!(
+                    "{} {:>5} -- {}",
+                    timestamp,
+                    record.level(),
+                    message
+                ));
+            })
+            .chain(log_file)
+            .level(log::LevelFilter::Off)
+            .level_for("panic", log::LevelFilter::Error)
+            .level_for("iced_wgpu", log::LevelFilter::Info)
+            .level_for("data", file_level_filter)
+            .level_for("ipc", file_level_filter)
+            .level_for("halloy", file_level_filter)
+    })
+}
+
+fn pane_dispatch(
+    env_rust_log: Option<log::Level>,
+) -> (fern::Dispatch, ReceiverStream<Vec<Record>>) {
+    // Set filter to trace in order to perform filtering when receiving for logs
+    // pane so that filter-level can be changed without restarting the
+    // application
     let channel_level_filter = env_rust_log
         .map_or(log::LevelFilter::Trace, |env| env.to_level_filter());
 
-    let mut io_sink = fern::Dispatch::new().format(|out, message, record| {
-        out.finish(format_args!(
-            "{}:{} -- {}",
-            chrono::Local::now().format("%H:%M:%S%.3f"),
-            record.level(),
-            message
-        ));
-    });
-
-    let log_file = data::log::file()?;
-
-    io_sink = io_sink.chain(log_file);
-
-    io_sink = io_sink
-        .level(log::LevelFilter::Off)
-        .level_for("panic", log::LevelFilter::Error)
-        .level_for("iced_wgpu", log::LevelFilter::Info)
-        .level_for("data", file_level_filter)
-        .level_for("ipc", file_level_filter)
-        .level_for("halloy", file_level_filter);
-
     let (channel_sink, receiver) = channel_logger();
 
-    let channel_sink = fern::Dispatch::new()
-        .chain(channel_sink)
-        .level(log::LevelFilter::Off)
-        .level_for("panic", log::LevelFilter::Error)
-        .level_for("iced_wgpu", log::LevelFilter::Info)
-        .level_for("data", channel_level_filter)
-        .level_for("ipc", channel_level_filter)
-        .level_for("halloy", channel_level_filter);
-
-    fern::Dispatch::new()
-        .chain(io_sink)
-        .chain(channel_sink)
-        .apply()?;
-
-    Ok(receiver)
+    (
+        fern::Dispatch::new()
+            .chain(channel_sink)
+            .level(log::LevelFilter::Off)
+            .level_for("panic", log::LevelFilter::Error)
+            .level_for("iced_wgpu", log::LevelFilter::Info)
+            .level_for("data", channel_level_filter)
+            .level_for("ipc", channel_level_filter)
+            .level_for("halloy", channel_level_filter),
+        receiver,
+    )
 }
 
 fn channel_logger() -> (Box<dyn Log>, ReceiverStream<Vec<Record>>) {
