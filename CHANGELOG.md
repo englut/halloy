@@ -23,6 +23,7 @@ Added:
 - Shortcuts displayed in pane button tooltips (where available/configured)
 - `servers.<name>.do_not_request` can be specified to prevent IRCv3 capability requests (e.g. `servers.<name>.do_not_request = [ "labeled-response" ]` will prevent [labeled-response](https://ircv3.net/specs/extensions/labeled-response) from being requested from the server)
 - `follow` option for reroute rules (`servers.<name>.reroute`) to reroute messages to the focused buffer
+- `logs.max_file_count` setting to control the number of Halloy log files that are stored on disk
 
 Fixed:
 
@@ -65,6 +66,7 @@ Changed:
 - Set window icon also on Linux for X11
 - `keyboard.file_transfers` shortcut is disabled when `file_transfer.enabled = false`
 - Rerouted messages are marked with a icon next to the nickname
+- More than one Halloy log file can be saved (configurable, defaults to 4);  accordingly there is not a singular log file `<data_dir>/halloy/halloy.log`, instead log files are placed in `<data_dir>/halloy/logs/`
 
 Thanks:
 
