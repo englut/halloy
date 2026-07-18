@@ -1629,9 +1629,15 @@ impl Halloy {
                 self.config = updated;
 
                 for (server, _) in removed_servers {
-                    self.clients.quit(
+                    self.controllers.end(
                         &server,
-                        self.config.buffer.commands.quit.default_reason.clone(),
+                        &self
+                            .config
+                            .buffer
+                            .commands
+                            .quit
+                            .default_reason
+                            .clone(),
                     );
                 }
 
