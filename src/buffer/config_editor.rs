@@ -5,7 +5,9 @@ use data::config::buffer::text_input::KeyBindings;
 use iced::advanced::text::Highlighter;
 use iced::advanced::text::highlighter::Format;
 use iced::widget::text::Wrapping;
-use iced::widget::{Space, column, container, row, rule, text, text_editor};
+use iced::widget::{
+    self, Space, column, container, operation, row, rule, text, text_editor,
+};
 use iced::{Font, Length, Task, highlighter, padding};
 
 use crate::appearance::theme;
@@ -66,6 +68,7 @@ impl Error {
 
 #[derive(Debug)]
 pub struct ConfigEditor {
+    id: widget::Id,
     content: text_editor::Content,
     saved_text: String,
     dirty: bool,
@@ -76,6 +79,7 @@ pub struct ConfigEditor {
 impl Clone for ConfigEditor {
     fn clone(&self) -> Self {
         Self {
+            id: self.id.clone(),
             content: text_editor::Content::with_text(&self.content.text()),
             saved_text: self.saved_text.clone(),
             dirty: self.dirty,
@@ -96,12 +100,25 @@ impl ConfigEditor {
         let (text, error) = read_config();
 
         Self {
+            id: widget::Id::unique(),
             content: text_editor::Content::with_text(&text),
             saved_text: text,
             dirty: false,
             error,
             history: History::new(),
         }
+    }
+
+    pub fn focus(&self) -> Task<Message> {
+        let id = self.id.clone();
+
+        operation::is_focused(id.clone()).then(move |is_focused| {
+            if is_focused {
+                Task::none()
+            } else {
+                operation::focus(id.clone())
+            }
+        })
     }
 
     pub fn has_unsaved_changes(&self) -> bool {
@@ -331,6 +348,7 @@ pub fn view<'a>(
     .width(Length::Fill);
 
     let editor = text_editor(&state.content)
+        .id(state.id.clone())
         .padding(8)
         .height(Length::Fill)
         .font(font::MONO.clone())
