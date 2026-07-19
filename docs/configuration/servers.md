@@ -626,6 +626,9 @@ Each entry supports:
 - `target` - destination buffer for matching private messages:
   - `{ channel = "#name" }` routes to a channel buffer
   - `"server"` routes to the server buffer
+- `follow` - when `true`, routes to the currently focused channel or server
+  buffer on the same server. Falls back to `target` when no buffer is
+  focused.
 
 ### `query`
 
@@ -639,7 +642,7 @@ This only changes where Halloy displays the messages. The messages are still pri
 
 [servers.<name>.reroute]
 query = [
-  { user = "Q", target = { channel = "#foo" } },
+  { user = "Q", target = { channel = "#foo" }, follow = true },
   { user = "ChanServ", target = "server" },
 ]
 ```

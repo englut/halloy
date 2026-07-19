@@ -381,8 +381,11 @@ impl UserDisplayData {
             row![
                 text_piece(self.left, font.clone()),
                 self.bot_icon.then(|| icon_piece('\u{1F916}')),
+                self.reroute_icon.then(|| text_piece(
+                    String::from('\u{292E}'),
+                    font.clone()
+                )),
                 self.right.map(|right| text_piece(right, font)),
-                self.reroute_icon.then(|| icon_piece('\u{E800}')),
             ]
             .spacing(theme::ICON_SPACE)
             .align_y(Vertical::Center)
@@ -397,15 +400,16 @@ impl UserDisplayData {
 
         if self.bot_icon {
             width += theme::ICON_SPACE + theme::ICON_SIZE;
+        }
 
-            if let Some(right) = self.right.as_ref() {
-                width += theme::ICON_SPACE
-                    + font::width_from_str(right.as_str(), &config.font);
-            }
+        if let Some(right) = self.right.as_ref() {
+            width += theme::ICON_SPACE
+                + font::width_from_str(right.as_str(), &config.font);
         }
 
         if self.reroute_icon {
-            width += theme::ICON_SPACE + theme::ICON_SIZE;
+            width += theme::ICON_SPACE
+                + font::width_from_str("\u{292E}", &config.font);
         }
 
         width
@@ -485,10 +489,10 @@ impl UserDisplayData {
 
     pub fn bracket(self, brackets: Option<&Brackets>) -> Self {
         if let Some(brackets) = brackets {
-            if self.bot_icon {
+            if self.bot_icon || self.reroute_icon {
                 UserDisplayData {
                     left: format!("{}{}", brackets.left, self.left),
-                    bot_icon: true,
+                    bot_icon: self.bot_icon,
                     reroute_icon: self.reroute_icon,
                     right: Some(
                         self.right
