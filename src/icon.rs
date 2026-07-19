@@ -242,6 +242,10 @@ pub fn reply<'a>() -> Text<'a> {
     to_text('\u{E81B}')
 }
 
+pub fn reroute<'a>() -> Text<'a> {
+    to_text('\u{292E}')
+}
+
 pub fn not_sent<'a>() -> TextColorSvg<'a, Theme> {
     let fontawesome_attention =
         include_bytes!("../assets/fontello/fontawesome-attention.svg").to_vec();

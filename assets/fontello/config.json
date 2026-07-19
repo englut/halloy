@@ -217,6 +217,12 @@
       "css": "folder-open-empty",
       "code": 61717,
       "src": "fontawesome"
+    },
+    {
+      "uid": "37c5ab63f10d7ad0b84d0978dcd0c7a8",
+      "css": "shuffle",
+      "code": 10542,
+      "src": "fontawesome"
     }
   ]
 }

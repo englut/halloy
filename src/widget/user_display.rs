@@ -12,7 +12,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use super::{Element, selectable_text, text};
 use crate::widget::TextExt as _;
-use crate::{Theme, font, theme, widget};
+use crate::{Theme, font, icon, theme, widget};
 
 #[derive(Clone)]
 pub struct UserDisplay {
@@ -381,10 +381,11 @@ impl UserDisplayData {
             row![
                 text_piece(self.left, font.clone()),
                 self.bot_icon.then(|| icon_piece('\u{1F916}')),
-                self.reroute_icon.then(|| text_piece(
-                    String::from('\u{292E}'),
-                    font.clone()
-                )),
+                self.reroute_icon.then(|| {
+                    icon::reroute()
+                        .color_maybe(style.color)
+                        .line_height(line_height)
+                }),
                 self.right.map(|right| text_piece(right, font)),
             ]
             .spacing(theme::ICON_SPACE)
@@ -408,8 +409,7 @@ impl UserDisplayData {
         }
 
         if self.reroute_icon {
-            width += theme::ICON_SPACE
-                + font::width_from_str("\u{292E}", &config.font);
+            width += theme::ICON_SPACE + theme::ICON_SIZE;
         }
 
         width
