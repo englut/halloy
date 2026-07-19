@@ -16,6 +16,7 @@ mod open_url;
 mod platform_specific;
 mod screen;
 mod stream;
+mod system;
 mod unix_signal;
 mod url;
 mod widget;
@@ -236,6 +237,7 @@ struct Halloy {
     focused_window: Option<window::Id>,
     pending_logs: Vec<data::log::Record>,
     notifications: Notifications,
+    power: system::State,
 }
 
 impl Halloy {
@@ -318,6 +320,7 @@ impl Halloy {
                 focused_window: None,
                 pending_logs: vec![],
                 notifications,
+                power: system::State::default(),
             },
             commands,
         )
@@ -356,6 +359,7 @@ pub enum Message {
     RuntimeConfigured(Result<(), iced::backend::Error>),
     SystemInformation(iced::system::Information),
     Notification(notification::Event),
+    System(system::Event),
 }
 
 impl Halloy {
@@ -795,6 +799,16 @@ impl Halloy {
                     None => Task::none(),
                 }
             }
+            Message::System(system::Event::Suspending) => {
+                log::info!("system suspending");
+                self.power = system::State::Suspended;
+                Task::none()
+            }
+            Message::System(system::Event::Resumed) => {
+                log::info!("system resumed");
+                self.power = system::State::Awake;
+                Task::none()
+            }
             Message::Stream(update) => match update {
                 stream::Update::Disconnected {
                     server,
@@ -814,7 +828,7 @@ impl Halloy {
                         &self.config,
                     );
 
-                    if is_initial {
+                    if is_initial || self.power.suppresses_connection_events() {
                         Task::none()
                     } else {
                         if !self.main_window.focused {
@@ -843,6 +857,10 @@ impl Halloy {
                     }
                 }
                 stream::Update::Connecting { server, sent_time } => {
+                    if self.power.suppresses_connection_events() {
+                        return Task::none();
+                    }
+
                     let Screen::Dashboard(dashboard) = &mut self.screen else {
                         return Task::none();
                     };
@@ -877,6 +895,10 @@ impl Halloy {
                         &self.clients,
                         &self.config,
                     );
+
+                    if self.power.suppresses_connection_events() {
+                        return Task::none();
+                    }
 
                     let (notification, broadcast_kind) = if is_initial {
                         (Notification::Connected, Broadcast::Connected)
@@ -914,6 +936,10 @@ impl Halloy {
                     error,
                     sent_time,
                 } => {
+                    if self.power.suppresses_connection_events() {
+                        return Task::none();
+                    }
+
                     let Screen::Dashboard(dashboard) = &mut self.screen else {
                         return Task::none();
                     };
@@ -1495,6 +1521,7 @@ impl Halloy {
             events().map(|(window, event)| Message::Event(window, event)),
             window::events()
                 .map(|(window, event)| Message::Window(window, event)),
+            system::events().map(Message::System),
             tick,
             streams,
         ];
