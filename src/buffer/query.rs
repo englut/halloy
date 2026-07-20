@@ -43,6 +43,7 @@ pub enum Event {
     InputSent {
         history_task: Task<history::manager::Message>,
         open_buffers: Vec<(Target, BufferAction)>,
+        was_join_command: bool,
     },
     FilehostUpload {
         server: Server,
@@ -342,6 +343,7 @@ impl Query {
                     Some(input_view::Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     }) => {
                         let command = Task::batch(vec![
                             command,
@@ -355,6 +357,7 @@ impl Query {
                             Some(Event::InputSent {
                                 history_task,
                                 open_buffers,
+                                was_join_command,
                             }),
                         )
                     }

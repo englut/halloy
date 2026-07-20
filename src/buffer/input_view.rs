@@ -53,6 +53,7 @@ pub enum Event {
     InputSent {
         history_task: Task<history::manager::Message>,
         open_buffers: Vec<(Target, BufferAction)>,
+        was_join_command: bool,
     },
     OpenBuffers {
         server: Server,
@@ -2055,6 +2056,7 @@ impl State {
             Some(Event::InputSent {
                 history_task,
                 open_buffers: vec![],
+                was_join_command: false,
             }),
         )
     }
@@ -2451,39 +2453,44 @@ impl State {
                 Task::batch(history_tasks.into_iter().map(Task::future));
         }
 
-        let open_buffers = if let Some(command::Irc::Join(targets, _)) =
-            input.command()
-        {
-            let chantypes =
-                clients.get_server_chantypes_or_default(buffer.server());
-            let statusmsg =
-                clients.get_server_statusmsg_or_default(buffer.server());
-            let casemapping =
-                clients.get_server_casemapping_or_default(buffer.server());
+        let (open_buffers, was_join_command) =
+            if let Some(command::Irc::Join(targets, _)) = input.command() {
+                let chantypes =
+                    clients.get_server_chantypes_or_default(buffer.server());
+                let statusmsg =
+                    clients.get_server_statusmsg_or_default(buffer.server());
+                let casemapping =
+                    clients.get_server_casemapping_or_default(buffer.server());
 
-            targets
-                .split(',')
-                .filter_map(|target| {
-                    let target = Target::parse(
-                        target,
-                        chantypes,
-                        statusmsg,
-                        casemapping,
-                    );
+                (
+                    targets
+                        .split(',')
+                        .filter_map(|target| {
+                            let target = Target::parse(
+                                target,
+                                chantypes,
+                                statusmsg,
+                                casemapping,
+                            );
 
-                    matches!(target, Target::Channel(_))
-                        .then_some((target, config.actions.buffer.join_channel))
-                })
-                .collect()
-        } else {
-            vec![]
-        };
+                            matches!(target, Target::Channel(_)).then_some((
+                                target,
+                                config.actions.buffer.join_channel,
+                            ))
+                        })
+                        .collect(),
+                    true,
+                )
+            } else {
+                (vec![], false)
+            };
 
         (
             Task::none(),
             Some(Event::InputSent {
                 history_task,
                 open_buffers,
+                was_join_command,
             }),
         )
     }

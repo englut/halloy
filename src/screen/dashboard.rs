@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque, hash_map};
-use std::convert;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::{convert, slice};
 
 use chrono::{DateTime, Utc};
 use data::capabilities::{
@@ -2388,6 +2388,7 @@ impl Dashboard {
                         clients,
                         buffer_action,
                         config,
+                        true,
                     ));
                 }
 
@@ -2555,6 +2556,7 @@ impl Dashboard {
             buffer::Event::InputSent {
                 history_task,
                 open_buffers,
+                was_join_command,
             } => {
                 let mut tasks = vec![];
 
@@ -2571,6 +2573,7 @@ impl Dashboard {
                             clients,
                             buffer_action,
                             config,
+                            !was_join_command,
                         ));
                     }
                 }
@@ -4913,9 +4916,16 @@ impl Dashboard {
         clients: &mut data::client::Map,
         buffer_action: BufferAction,
         config: &Config,
+        join_channel_if_not_joined: bool,
     ) -> Task<Message> {
         match target {
             Target::Channel(channel) => {
+                if join_channel_if_not_joined
+                    && !clients.contains_channel(&server, &channel)
+                {
+                    clients.join(&server, slice::from_ref(&channel));
+                }
+
                 let buffer = data::Buffer::Upstream(buffer::Upstream::Channel(
                     server, channel,
                 ));

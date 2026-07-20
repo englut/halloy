@@ -88,6 +88,7 @@ pub enum Event {
     InputSent {
         history_task: Task<history::manager::Message>,
         open_buffers: Vec<(Target, BufferAction)>,
+        was_join_command: bool,
     },
     SendUnsafeList(data::Server),
     ConfigSaved,
@@ -336,9 +337,11 @@ impl Buffer {
                     channel::Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     } => Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     },
                     channel::Event::FilehostUpload {
                         server,
@@ -400,9 +403,11 @@ impl Buffer {
                     server::Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     } => Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     },
                     server::Event::FilehostUpload {
                         server,
@@ -469,9 +474,11 @@ impl Buffer {
                     query::Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     } => Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     },
                     query::Event::FilehostUpload {
                         server,
