@@ -93,3 +93,16 @@ Controls the padding around the outer edge of the pane grid.
 [pane.gap]
 outer = 8
 ```
+
+## `always_show_title_bar_buttons`
+
+Whether to always show buttons in pane title bars, otherwise title bar buttons are only visible when the pane is hovered.
+
+```toml
+# Type: boolean
+# Values: true, false
+# Default: false
+
+[pane]
+always_show_title_bar_buttons = true
+```

@@ -180,7 +180,8 @@ impl Pane {
             maximized,
             clients,
             settings,
-            self.modal.is_none(),
+            !config.pane.always_show_title_bar_buttons,
+            self.modal.is_some(),
             config.tooltips.show_for_buttons() && self.modal.is_none(),
             is_popout,
             config,
@@ -297,7 +298,8 @@ impl TitleBar {
         maximized: bool,
         clients: &'a data::client::Map,
         settings: Option<&'a buffer::Settings>,
-        show_controls: bool,
+        only_show_controls_on_hover: bool,
+        hide_controls: bool,
         show_tooltips: bool,
         is_popout: bool,
         config: &'a Config,
@@ -776,12 +778,16 @@ impl TitleBar {
             .padding([0, 4])
             .align_y(iced::alignment::Vertical::Center);
 
-        let title_bar = widget::TitleBar::new(title).padding(6);
+        let mut title_bar = widget::TitleBar::new(title).padding(6);
 
-        if show_controls {
-            title_bar.controls(pane_grid::Controls::new(controls))
-        } else {
+        if !only_show_controls_on_hover {
+            title_bar = title_bar.always_show_controls();
+        }
+
+        if hide_controls {
             title_bar
+        } else {
+            title_bar.controls(pane_grid::Controls::new(controls))
         }
     }
 }
