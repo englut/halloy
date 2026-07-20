@@ -24,6 +24,7 @@ pub enum Message {
     Redo,
     Kill(text_editor_key_bindings::Kill, bool),
     OpenDirectory,
+    OpenConfigFile,
     Saved(String, Result<(), String>),
 }
 
@@ -236,6 +237,11 @@ impl ConfigEditor {
             }
             Message::OpenDirectory => {
                 let _ = crate::open_url::open(Config::config_dir());
+
+                (Task::none(), None)
+            }
+            Message::OpenConfigFile => {
+                let _ = crate::open_url::open(Config::path());
 
                 (Task::none(), None)
             }
