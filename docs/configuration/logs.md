@@ -1,16 +1,34 @@
 # Logs
 
-Customize log buffer
+Customize what is written to Halloy in-application and file logs.
+
+## `pane_level`
+
+The least urgent (most verbose) log level to record to the Logs pane.
+E.g. a `pane_level` setting of `"info"` will record all `ERROR`, `WARN`, and `INFO` messages to the Logs pane.
+The Logs pane will only contain log messages since Halloy was launched.  Log messages that are not recorded to the Logs pane may still be found in log files.
+
+```toml
+# Type: string
+# Values: "off", "error", "warn", "info", "debug", "trace"
+# Default: "info"
+
+[logs]
+pane_level = "info"
+```
+
+## Files
+
+Log files are named based on the Halloy launch time, with the [strftime](https://pubs.opengroup.org/onlinepubs/007908799/xsh/strftime.html) format `halloy.%Y-%m-%d-%H-%M-%S.log`.  They can be found in the log file directory:
+
+* Windows: `%AppData%\Roaming\halloy\logs\`
+* Mac: `~/Library/Application Support/halloy/logs` or `$HOME/.local/share/halloy/logs`
+* Linux: `$XDG_DATA_HOME/halloy/logs`, `$HOME/.local/share/halloy/logs`, or `$HOME/.var/app/org.squidowl.halloy/data/halloy/logs` (Flatpak)
 
 ## `file_level`
 
-The least urgent (most verbose) log level to record to the log file.
+The least urgent (most verbose) log level to record to log files.
 E.g. a `file_level` setting of `"debug"` will record all `ERROR`, `WARN`, `INFO`, and `DEBUG` messages to the log file.
-The log file is overwritten on each launch (i.e. contains log messages for the last session only).  It can be accessed at:
-
-* Windows: `%AppData%\Roaming\halloy\halloy.log`
-* Mac: `~/Library/Application Support/halloy/halloy.log` or `$HOME/.local/share/halloy/halloy.log`
-* Linux: `$XDG_DATA_HOME/halloy/halloy.log`, `$HOME/.local/share/halloy/halloy.log`, or `$HOME/.var/app/org.squidowl.halloy/data/halloy/halloy.log` (Flatpak)
 
 ::: warning
 Changes to file_level require an application restart to take effect.
@@ -25,17 +43,15 @@ Changes to file_level require an application restart to take effect.
 file_level = "debug"
 ```
 
-## `pane_level`
+## `max_file_count`
 
-The least urgent (most verbose) log level to record to the Logs pane.
-E.g. a `pane_level` setting of `"info"` will record all `ERROR`, `WARN`, and `INFO` messages to the Logs pane.
-Log messages that are not recorded to the Logs pane may still be found in the log file.
+The number of log files to keep in the [log file directory](#files).
 
 ```toml
-# Type: string
-# Values: "off", "error", "warn", "info", "debug", "trace"
-# Default: "info"
+# Type: non-negative integer
+# Values: any non-negative integer
+# Default: 4
 
 [logs]
-pane_level = "info"
+max_file_count = 0
 ```

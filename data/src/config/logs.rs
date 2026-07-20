@@ -5,6 +5,7 @@ use serde::Deserialize;
 pub struct Logs {
     pub file_level: LevelFilter,
     pub pane_level: LevelFilter,
+    pub max_file_count: usize,
 }
 
 impl Default for Logs {
@@ -12,6 +13,7 @@ impl Default for Logs {
         Self {
             file_level: LevelFilter::Debug,
             pane_level: LevelFilter::Info,
+            max_file_count: 4,
         }
     }
 }
