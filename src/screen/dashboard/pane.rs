@@ -367,7 +367,18 @@ impl TitleBar {
 
                 let reload_button_with_tooltip = tooltip(
                     reload_button,
-                    show_tooltips.then_some("Reload file from disk"),
+                    show_tooltips.then_some(
+                        match config.keyboard.reload_configuration.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Reload file from disk ({keybind})")
+                            }
+                            _ => "Reload file from disk".to_string(),
+                        },
+                    ),
                     tooltip::Position::Bottom,
                     theme,
                 );
@@ -397,6 +408,42 @@ impl TitleBar {
                     theme,
                 );
                 Some(open_directory_button_with_tooltip)
+            } else {
+                None
+            },
+            if matches!(buffer, Buffer::ConfigEditor(_)) {
+                let open_config_file_button = button(center(icon::config()))
+                    .padding(5)
+                    .width(22)
+                    .height(22)
+                    .on_press(Message::Buffer(
+                        id,
+                        buffer::Message::ConfigEditor(
+                            buffer::config_editor::Message::OpenConfigFile,
+                        ),
+                    ))
+                    .style(|theme, status| {
+                        theme::button::secondary(theme, status, false)
+                    });
+
+                let open_config_file_button_with_tooltip = tooltip(
+                    open_config_file_button,
+                    show_tooltips.then_some(
+                        match config.keyboard.open_config_file.primary() {
+                            Some(
+                                keybind @ data::shortcut::KeyBind::Bind {
+                                    ..
+                                },
+                            ) => {
+                                format!("Open config file ({keybind})")
+                            }
+                            _ => "Open config file".to_string(),
+                        },
+                    ),
+                    tooltip::Position::Bottom,
+                    theme,
+                );
+                Some(open_config_file_button_with_tooltip)
             } else {
                 None
             },
