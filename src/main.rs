@@ -241,15 +241,15 @@ struct Halloy {
 }
 
 impl Halloy {
-    fn modal_for_config_error(
-        config_load: &Result<Config, config::Error>,
+    fn modal_for_missing_keyring_password(
+        error: &config::Error,
     ) -> Option<Modal> {
-        match config_load {
-            Err(config::Error::MissingKeyringPasswordEntry {
+        match error {
+            config::Error::MissingKeyringPasswordEntry {
                 label,
                 context,
                 key,
-            }) => Some(Modal::KeyringPassword(
+            } => Some(Modal::KeyringPassword(
                 modal::keyring_password::KeyringPassword::new(
                     label.clone(),
                     context.clone(),
@@ -266,7 +266,10 @@ impl Halloy {
         current_mode: appearance::Mode,
     ) -> (Halloy, Task<Message>) {
         let main_window = Window::new(main_window);
-        let modal = Self::modal_for_config_error(&config_load);
+        let modal = config_load
+            .as_ref()
+            .err()
+            .and_then(Self::modal_for_missing_keyring_password);
         let load_dashboard = |config: &Config| match data::Dashboard::load() {
             Ok(dashboard) => {
                 if config.pane.restore_on_launch {
@@ -1717,18 +1720,9 @@ impl Halloy {
                 return runtime_task.unwrap_or_else(Task::none);
             }
             Err(error) => {
-                self.modal = match error {
-                    config::Error::MissingKeyringPasswordEntry {
-                        label,
-                        context,
-                        key,
-                    } => Some(Modal::KeyringPassword(
-                        modal::keyring_password::KeyringPassword::new(
-                            label, context, key,
-                        ),
-                    )),
-                    error => Some(Modal::ReloadConfigurationError(error)),
-                };
+                let modal = Self::modal_for_missing_keyring_password(&error)
+                    .unwrap_or_else(|| Modal::ReloadConfigurationError(error));
+                self.modal = Some(modal);
             }
         }
 

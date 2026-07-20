@@ -92,10 +92,7 @@ pub async fn get_password(key: &str) -> Result<Option<String>, Error> {
 
     tokio::task::spawn_blocking(move || get_password_blocking(&task_key))
         .await
-        .map_err(|error| Error::Keyring {
-            key,
-            error: error.to_string(),
-        })?
+        .map_err(|error| keyring_error(key, error))?
 }
 
 pub async fn set_password(key: &str, password: &str) -> Result<(), Error> {
@@ -107,59 +104,46 @@ pub async fn set_password(key: &str, password: &str) -> Result<(), Error> {
         set_password_blocking(&task_key, &password)
     })
     .await
-    .map_err(|error| Error::Keyring {
-        key,
-        error: error.to_string(),
-    })?
+    .map_err(|error| keyring_error(key, error))?
 }
 
 fn get_password_blocking(key: &str) -> Result<Option<String>, Error> {
-    ensure_default_store(key)?;
+    ensure_default_store().map_err(|error| keyring_error(key, error))?;
 
-    let entry = keyring_core::Entry::new(SERVICE, key).map_err(|error| {
-        Error::Keyring {
-            key: key.to_string(),
-            error: error.to_string(),
-        }
-    })?;
+    let entry = keyring_core::Entry::new(SERVICE, key)
+        .map_err(|error| keyring_error(key, error))?;
 
     match entry.get_password() {
         Ok(password) => Ok(Some(password)),
         Err(keyring_core::Error::NoEntry) => Ok(None),
-        Err(error) => Err(Error::Keyring {
-            key: key.to_string(),
-            error: error.to_string(),
-        }),
+        Err(error) => Err(keyring_error(key, error)),
     }
 }
 
 fn set_password_blocking(key: &str, password: &str) -> Result<(), Error> {
-    ensure_default_store(key)?;
+    ensure_default_store().map_err(|error| keyring_error(key, error))?;
 
-    let entry = keyring_core::Entry::new(SERVICE, key).map_err(|error| {
-        Error::Keyring {
-            key: key.to_string(),
-            error: error.to_string(),
-        }
-    })?;
+    let entry = keyring_core::Entry::new(SERVICE, key)
+        .map_err(|error| keyring_error(key, error))?;
 
     entry
         .set_password(password)
-        .map_err(|error| Error::Keyring {
-            key: key.to_string(),
-            error: error.to_string(),
-        })
+        .map_err(|error| keyring_error(key, error))
 }
 
-fn ensure_default_store(key: &str) -> Result<(), Error> {
+fn ensure_default_store() -> keyring_core::Result<()> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());
     }
 
-    set_platform_default_store().map_err(|error| Error::Keyring {
-        key: key.to_string(),
+    set_platform_default_store()
+}
+
+fn keyring_error(key: impl Into<String>, error: impl ToString) -> Error {
+    Error::Keyring {
+        key: key.into(),
         error: error.to_string(),
-    })
+    }
 }
 
 #[cfg(target_os = "macos")]

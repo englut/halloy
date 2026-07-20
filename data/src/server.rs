@@ -273,19 +273,17 @@ impl ConfigMap {
 
                 config.nick_password = Some(password);
             }
-            for (channel, password_keyring) in
-                config.channel_keys_keyring.clone()
-            {
+            for (channel, password_keyring) in &config.channel_keys_keyring {
                 let Some(key) = password_keyring.key_or_default(|| {
-                    config::keyring::channel_key(&server, &channel)
+                    config::keyring::channel_key(&server, channel)
                 }) else {
                     continue;
                 };
 
-                if config.channel_keys.contains_key(&channel) {
+                if config.channel_keys.contains_key(channel) {
                     return Err(Error::DuplicateChannelKey {
                         server: server.to_string(),
-                        channel,
+                        channel: channel.clone(),
                     });
                 }
 
@@ -297,7 +295,7 @@ impl ConfigMap {
                         key: key.clone(),
                     })?;
 
-                config.channel_keys.insert(channel, password);
+                config.channel_keys.insert(channel.clone(), password);
             }
             if let Some(sasl) = &mut config.sasl {
                 sasl.check_permissions(&server);
