@@ -22,6 +22,7 @@ Added:
 - Context menu on channel links
 - Shortcuts displayed in pane button tooltips (where available/configured)
 - `servers.<name>.do_not_request` can be specified to prevent IRCv3 capability requests (e.g. `servers.<name>.do_not_request = [ "labeled-response" ]` will prevent [labeled-response](https://ircv3.net/specs/extensions/labeled-response) from being requested from the server)
+- `follow` option for reroute rules (`servers.<name>.reroute`) to reroute messages to the focused buffer
 
 Fixed:
 
@@ -63,6 +64,7 @@ Changed:
 - Windows release artifacts are signed using SignPath
 - Set window icon also on Linux for X11
 - `keyboard.file_transfers` shortcut is disabled when `file_transfer.enabled = false`
+- Rerouted messages are marked with a icon next to the nickname
 
 Thanks:
 

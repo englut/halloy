@@ -33,7 +33,7 @@ use crate::server::Server;
 use crate::target::join_targets;
 use crate::time::Posix;
 use crate::user::{ChannelUsers, Nick, NickRef};
-use crate::{Config, User, command, ctcp, isupport, message, target};
+use crate::{Config, User, buffer, command, ctcp, isupport, message, target};
 
 // References:
 // - https://datatracker.ietf.org/doc/html/rfc1738#section-5
@@ -99,11 +99,11 @@ pub fn reroute_private_message_target(
     target: &Target,
     reroute_rules: &RerouteRules,
     server: &Server,
+    focused_buffer: Option<&buffer::Upstream>,
 ) -> Option<Target> {
     match target {
-        Target::Query { query, source } => {
-            reroute_rules.target_for_direct_message(query, server, source)
-        }
+        Target::Query { query, source } => reroute_rules
+            .target_for_direct_message(query, server, source, focused_buffer),
         _ => None,
     }
 }
@@ -112,11 +112,11 @@ pub fn reroute_private_notice_target(
     target: &Target,
     reroute_rules: &RerouteRules,
     server: &Server,
+    focused_buffer: Option<&buffer::Upstream>,
 ) -> Option<Target> {
     match target {
-        Target::Query { query, source } => {
-            reroute_rules.target_for_direct_notice(query, server, source)
-        }
+        Target::Query { query, source } => reroute_rules
+            .target_for_direct_notice(query, server, source, focused_buffer),
         _ => None,
     }
 }
@@ -466,6 +466,7 @@ impl Message {
         deduplicate: bool,
         config: &'a Config,
         reroute_rules: &RerouteRules,
+        focused_buffer: Option<&buffer::Upstream>,
         resolve_attributes: impl Fn(&User, &target::Channel) -> Option<User>,
         channel_users: impl Fn(&target::Channel) -> Option<&'a ChannelUsers>,
         server: &Server,
@@ -485,6 +486,7 @@ impl Message {
             &encoded,
             &our_nick,
             reroute_rules,
+            focused_buffer,
             &resolve_attributes,
             server,
             chantypes,
@@ -537,6 +539,7 @@ impl Message {
         deduplicate: bool,
         config: &'a Config,
         reroute_rules: &RerouteRules,
+        focused_buffer: Option<&buffer::Upstream>,
         resolve_attributes: impl Fn(&User, &target::Channel) -> Option<User>,
         channel_users: impl Fn(&target::Channel) -> Option<&'a ChannelUsers>,
         is_our_message: impl Fn(&Id, &crate::history::Kind, &DateTime<Utc>) -> bool,
@@ -557,6 +560,7 @@ impl Message {
             &encoded,
             &our_nick,
             reroute_rules,
+            focused_buffer,
             &resolve_attributes,
             server,
             chantypes,
@@ -2475,6 +2479,7 @@ fn target(
     message: &Encoded,
     our_nick: &Nick,
     reroute_rules: &RerouteRules,
+    focused_buffer: Option<&buffer::Upstream>,
     resolve_attributes: &dyn Fn(&User, &target::Channel) -> Option<User>,
     server: &Server,
     chantypes: &[char],
@@ -2824,6 +2829,7 @@ fn target(
                                     &target,
                                     reroute_rules,
                                     server,
+                                    focused_buffer,
                                 )
                         {
                             (rerouted_target, Some(target))
@@ -2833,6 +2839,7 @@ fn target(
                                     &target,
                                     reroute_rules,
                                     server,
+                                    focused_buffer,
                                 )
                         {
                             (rerouted_target, Some(target))
@@ -4260,6 +4267,7 @@ pub mod tests {
                 &message::Encoded(encoded),
                 &our_nick,
                 &reroute_rules,
+                None,
                 &|_: &User, _: &target::Channel| None,
                 &server,
                 chantypes,
@@ -4958,6 +4966,7 @@ pub mod tests {
             false,
             &Config::default(),
             &RerouteRules::default(),
+            None,
             |user: &User, _channel: &target::Channel| {
                 channel_users
                     .iter()

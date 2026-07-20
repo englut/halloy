@@ -670,6 +670,7 @@ mod nick_list {
                         user,
                         nicklist_config.show_access_levels,
                         nicklist_config.show_bot_icon,
+                        false,
                         registry,
                         &config.display.nicklist_nickname,
                         nicklist_config

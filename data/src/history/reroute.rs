@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::user::Nick;
-use crate::{Server, client, config, isupport, message, server, target};
+use crate::{
+    Server, buffer, client, config, isupport, message, server, target,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RerouteRules {
@@ -142,6 +144,7 @@ fn parse_reroute_rules(
 pub struct RerouteRule {
     pub from: Nick,
     pub to: RerouteTarget,
+    pub follow: bool,
 }
 
 impl RerouteRule {
@@ -171,6 +174,7 @@ impl RerouteRule {
         .map(|target| RerouteRule {
             from: nick,
             to: target,
+            follow: reroute_rule.follow,
         })
     }
 }
@@ -195,8 +199,15 @@ impl RerouteRules {
         query: &target::Query,
         server: &Server,
         source: &message::Source,
+        focused_buffer: Option<&buffer::Upstream>,
     ) -> Option<message::Target> {
-        target_for_query(&self.direct_messages, query, server, source)
+        target_for_query(
+            &self.direct_messages,
+            query,
+            server,
+            source,
+            focused_buffer,
+        )
     }
 
     pub fn has_reroute_rule_for_direct_notice(
@@ -212,8 +223,15 @@ impl RerouteRules {
         query: &target::Query,
         server: &Server,
         source: &message::Source,
+        focused_buffer: Option<&buffer::Upstream>,
     ) -> Option<message::Target> {
-        target_for_query(&self.direct_notices, query, server, source)
+        target_for_query(
+            &self.direct_notices,
+            query,
+            server,
+            source,
+            focused_buffer,
+        )
     }
 }
 
@@ -234,23 +252,49 @@ fn target_for_query(
     query: &target::Query,
     server: &Server,
     source: &message::Source,
+    focused_buffer: Option<&buffer::Upstream>,
 ) -> Option<message::Target> {
-    reroute_rules.get(server).and_then(|reroute_rules| {
-        reroute_rules.iter().find_map(|reroute_rule| {
-            ((query.as_normalized_str()
-                == reroute_rule.from.as_normalized_str())
-                || reroute_rule.from.as_str() == "*")
-                .then_some(match &reroute_rule.to {
-                    RerouteTarget::Channel(channel) => {
-                        message::Target::Channel {
-                            channel: channel.clone(),
-                            source: source.clone(),
-                        }
-                    }
-                    RerouteTarget::Server => message::Target::Server {
-                        source: source.clone(),
-                    },
-                })
-        })
+    let reroute_rule =
+        reroute_rules.get(server)?.iter().find(|reroute_rule| {
+            (query.as_normalized_str() == reroute_rule.from.as_normalized_str())
+                || reroute_rule.from.as_str() == "*"
+        })?;
+
+    if reroute_rule.follow {
+        match focused_buffer {
+            Some(buffer::Upstream::Channel(focused_server, channel))
+                if focused_server == server =>
+            {
+                return Some(message::Target::Channel {
+                    channel: channel.clone(),
+                    source: source.clone(),
+                });
+            }
+            Some(buffer::Upstream::Server(focused_server))
+                if focused_server == server =>
+            {
+                return Some(message::Target::Server {
+                    source: source.clone(),
+                });
+            }
+            Some(buffer::Upstream::Query(focused_server, focused_query))
+                if focused_server == server
+                    && focused_query.as_normalized_str()
+                        == query.as_normalized_str() =>
+            {
+                return None;
+            }
+            _ => {}
+        }
+    }
+
+    Some(match &reroute_rule.to {
+        RerouteTarget::Channel(channel) => message::Target::Channel {
+            channel: channel.clone(),
+            source: source.clone(),
+        },
+        RerouteTarget::Server => message::Target::Server {
+            source: source.clone(),
+        },
     })
 }

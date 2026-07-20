@@ -11,6 +11,8 @@ pub struct Reroute {
 pub struct RerouteRule {
     pub user: String,
     pub target: RerouteTarget,
+    #[serde(default)]
+    pub follow: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
