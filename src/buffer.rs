@@ -754,8 +754,10 @@ impl Buffer {
             Buffer::Empty
             | Buffer::FileTransfers(_)
             | Buffer::Logs(_)
-            | Buffer::Highlights(_)
-            | Buffer::ConfigEditor(_) => widget::operate(focusable::unfocus()),
+            | Buffer::Highlights(_) => widget::operate(focusable::unfocus()),
+            Buffer::ConfigEditor(config_editor) => {
+                config_editor.focus().map(Message::ConfigEditor)
+            }
             Buffer::Channel(channel) => channel.focus().map(Message::Channel),
             Buffer::Server(server) => server.focus().map(Message::Server),
             Buffer::Query(query) => query.focus().map(Message::Query),
