@@ -134,7 +134,7 @@ impl KeyringPassword {
                 .style(|theme, status| {
                     theme::button::secondary(theme, status, false)
                 })
-                .on_press(Message::Cancel),
+                .on_press_maybe((!self.saving).then_some(Message::Cancel)),
             );
 
         container(content)
