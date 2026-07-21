@@ -247,21 +247,22 @@ impl Dashboard {
         config: &Config,
     ) -> Task<Message> {
         Task::batch(
-            self.visible_urls_with_preview_clients(clients)
-                .into_iter()
-                .map(|(url, client)| {
-                    Task::perform(
-                        data::preview::load(
-                            url.clone(),
-                            client.clone(),
-                            config.preview.clone(),
-                            self.previews_cache.clone(),
-                        ),
-                        move |result| {
-                            Message::LoadPreview((url.clone(), result))
-                        },
-                    )
-                }),
+            self.visible_preview_urls_with_preview_clients(
+                clients,
+                &config.preview,
+            )
+            .into_iter()
+            .map(|(url, client)| {
+                Task::perform(
+                    data::preview::load(
+                        url.clone(),
+                        client.clone(),
+                        config.preview.clone(),
+                        self.previews_cache.clone(),
+                    ),
+                    move |result| Message::LoadPreview((url.clone(), result)),
+                )
+            }),
         )
     }
 
@@ -2464,7 +2465,10 @@ impl Dashboard {
                 }
             }
             buffer::Event::PreviewChanged => {
-                let visible = self.visible_urls_with_preview_clients(clients);
+                let visible = self.visible_preview_urls_with_preview_clients(
+                    clients,
+                    &config.preview,
+                );
                 let tracking =
                     self.previews.keys().cloned().collect::<HashSet<_>>();
                 let missing = visible
@@ -5020,27 +5024,49 @@ impl Dashboard {
         self.panes.main_window
     }
 
-    fn visible_urls_with_preview_clients(
+    // URLs are filtered if there is no available preview client (an error) or
+    // previews are disabled for the buffer (configuration)
+    fn visible_preview_urls_with_preview_clients(
         &self,
         clients: &client::Map,
+        config: &config::preview::Preview,
     ) -> HashMap<url::Url, Arc<reqwest::Client>> {
         let pane_map = |pane: &Pane| -> Vec<(url::Url, Arc<reqwest::Client>)> {
-            let preview_client = if let Some(server) = pane.buffer.server()
-                && clients.get_server_proxy_config(&server).is_some()
+            let server = pane.buffer.server();
+
+            let preview_client = if let Some(server) = server.as_ref()
+                && clients.get_server_proxy_config(server).is_some()
             {
-                clients.get_server_http_client(&server)
+                clients.get_server_http_client(server)
             } else {
                 self.http_client.clone()
             };
 
-            if let Some(preview_client) = preview_client {
-                pane.visible_urls()
-                    .into_iter()
-                    .map(move |url| (url.clone(), preview_client.clone()))
-                    .collect()
-            } else {
-                vec![]
+            let Some(preview_client) = preview_client else {
+                return vec![];
+            };
+
+            if let Some(server) = server.as_ref()
+                && let Some(target_ref) = pane.buffer.target_ref()
+            {
+                let casemapping =
+                    clients.get_server_casemapping_or_default(server);
+
+                if matches!(
+                    config.card.visible(target_ref, server, casemapping),
+                    config::preview::Visibility::None
+                ) && matches!(
+                    config.image.visible(target_ref, server, casemapping),
+                    config::preview::Visibility::None
+                ) {
+                    return vec![];
+                }
             }
+
+            pane.visible_urls()
+                .into_iter()
+                .map(move |url| (url.clone(), preview_client.clone()))
+                .collect()
         };
 
         self.panes

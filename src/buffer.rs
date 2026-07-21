@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 pub use data::buffer::{Internal, Settings, Upstream};
 use data::config::buffer::text_input::Autocomplete;
 use data::dashboard::BufferAction;
-use data::target::{self, Target};
+use data::target::{self, Target, TargetRef};
 use data::user::Nick;
 use data::{
     Config, Image, buffer, file_transfer, history, input, message, preview,
@@ -228,6 +228,20 @@ impl Buffer {
                 Some(Target::Channel(state.target.clone()))
             }
             Buffer::Query(state) => Some(Target::Query(state.target.clone())),
+            Buffer::Empty
+            | Buffer::Server(_)
+            | Buffer::FileTransfers(_)
+            | Buffer::Logs(_)
+            | Buffer::Highlights(_)
+            | Buffer::ChannelDiscovery(_)
+            | Buffer::ConfigEditor(_) => None,
+        }
+    }
+
+    pub fn target_ref<'a>(&'a self) -> Option<TargetRef<'a>> {
+        match self {
+            Buffer::Channel(state) => Some(TargetRef::Channel(&state.target)),
+            Buffer::Query(state) => Some(TargetRef::Query(&state.target)),
             Buffer::Empty
             | Buffer::Server(_)
             | Buffer::FileTransfers(_)
