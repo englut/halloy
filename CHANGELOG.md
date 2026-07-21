@@ -52,6 +52,7 @@ Fixed:
 - Do not reconnect automatically when the server closes the connection in response to a requested quit
 - Don't show a transient terminal window when running `/exec` on Windows
 - Suppress connection status messages while macOS is asleep
+- When both card and image previews are excluded for a buffer, previews will not be pre-fetched for URLs in that buffer
 
 Changed:
 
@@ -73,7 +74,7 @@ Changed:
 Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
-- Bug reports: @luca020400, agent314, @FlooferLand, @englut
+- Bug reports: @luca020400, agent314, @FlooferLand, @englut, @rexbinary
 - Feature requests: @FlooferLand, quark
 
 # 2026.7.2 (2026-06-08)
