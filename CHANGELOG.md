@@ -25,6 +25,7 @@ Added:
 - `follow` option for reroute rules (`servers.<name>.reroute`) to reroute messages to the focused buffer
 - `logs.max_file_count` setting to control the number of Halloy log files that are stored on disk
 - `pane.always_show_title_bar_buttons` setting to prevent pane title bar buttons from being hidden when the pane is not hovered
+- Allow image preview on URL click
 
 Fixed:
 
@@ -75,7 +76,7 @@ Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
 - Bug reports: @luca020400, agent314, @FlooferLand, @englut, @rexbinary
-- Feature requests: @FlooferLand, quark
+- Feature requests: @FlooferLand, quark, @daniiooo
 
 # 2026.7.2 (2026-06-08)
 
