@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use data::buffer::RightAlignmentWidths;
 use data::command::Irc;
-use data::config::actions::NicknameClickAction;
+use data::config::actions::{ImageClickAction, NicknameClickAction};
 use data::config::buffer::{CondensationIcon, HideConsecutiveEnabled};
 use data::dashboard::BufferAction;
 use data::isupport::ChatHistoryState;
@@ -53,6 +53,7 @@ pub enum Message {
     },
     ContextMenu(context_menu::Message),
     Link(message::Link),
+    ImageUrl(Image),
     ImagePreview(Image),
     ScrollTo(keyed::Hit),
     RequestOlderChatHistory,
@@ -1113,6 +1114,18 @@ impl State {
                         )
                     }),
                 );
+            }
+            Message::ImageUrl(image) => {
+                let event = match config.actions.buffer.click_image_url {
+                    ImageClickAction::OpenUrl => {
+                        Some(Event::OpenUrl(image.url.to_string()))
+                    }
+                    ImageClickAction::Preview => {
+                        Some(Event::ImagePreview(image))
+                    }
+                };
+
+                return (Task::none(), event);
             }
             Message::ScrollTo(keyed::Hit {
                 key,
