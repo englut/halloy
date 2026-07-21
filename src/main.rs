@@ -108,9 +108,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // shutdown_background without leaks
     rt.shutdown_background();
 
+    // If the config fails to load, then attempt to load the font alone
+    // in order to provide UI as close to configured as possible.
+    // Particularly of use while the font cannot be changed while
+    // the application is running.
+    let font_config = config_load
+        .as_ref()
+        .ok()
+        .map(|config| config.font.clone())
+        .or(Config::load_font())
+        .unwrap_or_default();
+
     // DANGER ZONE - font must be set using config
     // before we do any iced related stuff w/ it
-    font::set(config_load.as_ref().ok());
+    font::set(&font_config);
 
     let destination = data::Url::find_in(std::env::args());
     if let Some(loc) = &destination
@@ -119,7 +130,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let settings = settings(&config_load);
+    let settings = settings(&config_load, &font_config);
     let log_stream = Mutex::new(Some(log_stream));
 
     //tarkah: guess we need to move some stuff into the Halloy::new now.
@@ -155,12 +166,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn settings(config_load: &Result<Config, config::Error>) -> iced::Settings {
-    let default_text_size = config_load
-        .as_ref()
-        .ok()
-        .and_then(|config| config.font.size)
-        .map_or(theme::TEXT_SIZE, f32::from);
+fn settings(
+    config_load: &Result<Config, config::Error>,
+    font_config: &config::Font,
+) -> iced::Settings {
+    let default_text_size =
+        font_config.size.map_or(theme::TEXT_SIZE, f32::from);
 
     let runtime = config_load
         .as_ref()

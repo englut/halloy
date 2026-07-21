@@ -706,6 +706,21 @@ impl Config {
         Some(logs)
     }
 
+    pub fn load_font() -> Option<Font> {
+        #[derive(Default, Deserialize)]
+        #[serde(default)]
+        pub struct Configuration {
+            pub font: Font,
+        }
+
+        let path = Self::path();
+        let content = std::fs::read_to_string(path).ok()?;
+
+        let Configuration { font } = toml::from_str(content.as_ref()).ok()?;
+
+        Some(font)
+    }
+
     pub fn create_initial_config() {
         // Checks if a config file is there
         let config_file = Self::path();
