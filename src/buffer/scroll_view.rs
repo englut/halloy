@@ -53,7 +53,6 @@ pub enum Message {
     },
     ContextMenu(context_menu::Message),
     Link(message::Link),
-    ImageUrl(Image),
     ImagePreview(Image),
     ScrollTo(keyed::Hit),
     RequestOlderChatHistory,
@@ -867,6 +866,7 @@ impl State {
         buffer: Option<&buffer::Upstream>,
         history: &mut history::Manager,
         clients: &mut client::Map,
+        previews: &preview::Collection,
         config: &Config,
     ) -> (Task<Message>, Option<Event>) {
         match message {
@@ -1072,7 +1072,28 @@ impl State {
                 );
             }
             Message::Link(message::Link::Url(url)) => {
-                return (Task::none(), Some(Event::OpenUrl(url)));
+                let event = match config.actions.buffer.click_image_url {
+                    ImageClickAction::OpenUrl => Event::OpenUrl(url),
+                    ImageClickAction::Preview => {
+                        let image =
+                            url::Url::parse(&url).ok().and_then(|url| {
+                                previews.get(&url).and_then(|state| match state
+                                {
+                                    preview::State::Loaded(
+                                        data::Preview::Image(image),
+                                    ) => Some(image.clone()),
+                                    _ => None,
+                                })
+                            });
+
+                        image.map_or_else(
+                            || Event::OpenUrl(url),
+                            Event::ImagePreview,
+                        )
+                    }
+                };
+
+                return (Task::none(), Some(event));
             }
             Message::Link(message::Link::User(server, user)) => {
                 let event = match config.actions.buffer.click_username {
@@ -1114,18 +1135,6 @@ impl State {
                         )
                     }),
                 );
-            }
-            Message::ImageUrl(image) => {
-                let event = match config.actions.buffer.click_image_url {
-                    ImageClickAction::OpenUrl => {
-                        Some(Event::OpenUrl(image.url.to_string()))
-                    }
-                    ImageClickAction::Preview => {
-                        Some(Event::ImagePreview(image))
-                    }
-                };
-
-                return (Task::none(), event);
             }
             Message::ScrollTo(keyed::Hit {
                 key,

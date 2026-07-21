@@ -102,24 +102,6 @@ pub struct ChannelQueryLayout<'a> {
 }
 
 impl<'a> ChannelQueryLayout<'a> {
-    fn link_message(&self, link: message::Link) -> Message {
-        match &link {
-            message::Link::Url(url_str) => {
-                let image = url::Url::parse(url_str).ok().and_then(|url| {
-                    self.previews.get(&url).and_then(|state| match state {
-                        preview::State::Loaded(data::Preview::Image(image)) => {
-                            Some(image.clone())
-                        }
-                        _ => None,
-                    })
-                });
-
-                image.map_or_else(|| Message::Link(link), Message::ImageUrl)
-            }
-            _ => Message::Link(link),
-        }
-    }
-
     fn reply_nick_to_strip<'m>(
         &self,
         message: &'m data::Message,
@@ -709,7 +691,7 @@ impl<'a> ChannelQueryLayout<'a> {
                             self.chantypes,
                             self.casemapping,
                             self.theme,
-                            move |link| formatter.link_message(link),
+                            Message::Link,
                             None,
                             message_style,
                             theme::font_style::primary,
@@ -820,7 +802,7 @@ impl<'a> ChannelQueryLayout<'a> {
             formatter.chantypes,
             formatter.casemapping,
             self.theme,
-            move |link| formatter.link_message(link),
+            Message::Link,
             link.map(|link| {
                 (
                     link,
@@ -1308,7 +1290,7 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                     formatter.chantypes,
                     formatter.casemapping,
                     formatter.theme,
-                    move |link| formatter.link_message(link),
+                    Message::Link,
                     None,
                     message_style,
                     theme::font_style::action,
@@ -1347,8 +1329,6 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
             message::Source::Internal(message::source::Internal::Status(
                 status,
             )) => {
-                let formatter = *self;
-
                 let message_style = move |message_theme: &Theme| {
                     theme::selectable_text::status(message_theme, *status)
                 };
@@ -1372,7 +1352,7 @@ impl<'a> LayoutMessage<'a> for ChannelQueryLayout<'a> {
                     self.chantypes,
                     self.casemapping,
                     self.theme,
-                    move |link| formatter.link_message(link),
+                    Message::Link,
                     None,
                     message_style,
                     message_font_style,
