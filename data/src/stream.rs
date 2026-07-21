@@ -14,6 +14,7 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::time::{self, Instant, Interval};
 
 use crate::client::Client;
+use crate::config::server::IrcProtocolLogFormat;
 use crate::server::Server;
 use crate::time::Posix;
 use crate::{config, environment, message, server};
@@ -605,10 +606,14 @@ async fn connect(
     config: Arc<config::Server>,
     proxy: Option<config::Proxy>,
 ) -> Result<(Stream, Client), connection::Error> {
-    let logger = if config.log_irc_protocol {
+    let logger = if config.irc_protocol_log.enabled {
         let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        tokio::task::spawn(log_codec(server.clone(), receiver));
+        tokio::task::spawn(log_codec(
+            server.clone(),
+            config.irc_protocol_log,
+            receiver,
+        ));
 
         Some(sender)
     } else {
@@ -637,6 +642,7 @@ async fn connect(
 
 async fn log_codec(
     server: Server,
+    config: config::server::IrcProtocolLog,
     mut receiver: tokio::sync::mpsc::UnboundedReceiver<CodecLog>,
 ) {
     let log_writer = LogWriter::new(&server).await;
@@ -657,7 +663,7 @@ async fn log_codec(
             } {
                 match action {
                     Ok(message) => {
-                        log_writer.write(message).await;
+                        log_writer.write(message, &config).await;
                         set_timeout_to_flush = true;
                     }
                     Err(_) => {
@@ -697,9 +703,17 @@ impl LogWriter {
         })
     }
 
-    pub async fn write(&mut self, message: CodecLog) {
+    pub async fn write(
+        &mut self,
+        message: CodecLog,
+        config: &config::server::IrcProtocolLog,
+    ) {
         let now = Local::now();
-        let today = now.date_naive();
+
+        let today = match config.timestamp {
+            config::logs::Timestamp::Local => now.date_naive(),
+            config::logs::Timestamp::Utc => now.to_utc().date_naive(),
+        };
 
         if let Some((date, writer)) = &mut self.date_writer {
             if today != *date {
@@ -713,7 +727,7 @@ impl LogWriter {
 
         if let Some((_, writer)) = &mut self.date_writer {
             let _ = writer
-                .write_all(LogWriter::format(message, now).as_bytes())
+                .write_all(LogWriter::format(message, now, config).as_bytes())
                 .await;
         }
     }
@@ -730,18 +744,33 @@ impl LogWriter {
             .map(|writer| (date, BufWriter::new(writer)));
     }
 
-    fn format(message: CodecLog, received_at: DateTime<Local>) -> String {
-        let (message_content, direction) = match message {
-            CodecLog::Received(content) => (content, "RECEIVED"),
-            CodecLog::Sent(content) => (content, "  SENT  "),
+    fn format(
+        message: CodecLog,
+        received_at: DateTime<Local>,
+        config: &config::server::IrcProtocolLog,
+    ) -> String {
+        let received_at_format = "%H:%M:%S%.3f";
+        let received_at = match config.timestamp {
+            config::logs::Timestamp::Local => {
+                received_at.format(received_at_format)
+            }
+            config::logs::Timestamp::Utc => {
+                received_at.to_utc().format(received_at_format)
+            }
         };
 
-        format!(
-            "{} {} -- {}",
-            received_at.format("%H:%M:%S%.3f"),
-            direction,
-            message_content
-        )
+        let (direction, divider, message_content) = match config.format {
+            IrcProtocolLogFormat::Halloy => match message {
+                CodecLog::Received(content) => ("RECEIVED", " -- ", content),
+                CodecLog::Sent(content) => ("  SENT  ", " -- ", content),
+            },
+            IrcProtocolLogFormat::Goguma => match message {
+                CodecLog::Received(content) => ("<-", " ", content),
+                CodecLog::Sent(content) => ("->", " ", content),
+            },
+        };
+
+        format!("{received_at} {direction}{divider}{message_content}")
     }
 
     pub async fn flush(&mut self) {

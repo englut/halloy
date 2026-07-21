@@ -55,3 +55,16 @@ The number of log files to keep in the [log file directory](#files).
 [logs]
 max_file_count = 0
 ```
+
+### `file_timestamp`
+
+Time zone to use for Halloy-provided timestamps in the file logs and their file names.  `"local"` uses the system's local timezone, and `"utc"` uses the UTC timezone (may be more difficult to understand, but stable if the system changes timezones).
+
+```toml
+# Type: string
+# Values: "local", "utc"
+# Default: "local"
+
+[logs]
+file_timestamp = "utc"
+```

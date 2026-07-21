@@ -5,14 +5,17 @@ use std::{fs, io};
 use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::config::logs::LevelFilter;
+use crate::config::logs::{LevelFilter, Timestamp};
 use crate::environment;
 
-pub fn file() -> Result<fs::File, Error> {
+pub fn file(timestamp: Timestamp) -> Result<fs::File, Error> {
+    let file_format = "halloy.%Y-%m-%d-%H-%M-%S.log";
     let path = dir()?.join(
-        Local::now()
-            .format("halloy.%Y-%m-%d-%H-%M-%S.log")
-            .to_string(),
+        match timestamp {
+            Timestamp::Local => Local::now().format(file_format),
+            Timestamp::Utc => Utc::now().format(file_format),
+        }
+        .to_string(),
     );
 
     Ok(fs::OpenOptions::new()
