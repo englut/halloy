@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use data::{
-    Config, Image, Preview, Server, client, history, message, metadata, preview, target,
+    Config, Image, Preview, Server, client, history, message, metadata,
+    preview, target,
 };
 use iced::widget::{container, row};
 use iced::{Length, Size, Task};
