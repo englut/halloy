@@ -3,6 +3,8 @@ use serde::{Deserialize, Deserializer};
 use super::Error;
 
 const SERVICE: &str = "chat.halloy";
+#[cfg(any(windows, test))]
+const WINDOWS_MAX_USERNAME_LEN: usize = 513;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Password {
@@ -108,6 +110,8 @@ pub async fn set_password(key: &str, password: &str) -> Result<(), Error> {
 }
 
 fn get_password_blocking(key: &str) -> Result<Option<String>, Error> {
+    #[cfg(windows)]
+    validate_key(key)?;
     ensure_default_store().map_err(|error| keyring_error(key, error))?;
 
     let entry = keyring_core::Entry::new(SERVICE, key)
@@ -121,6 +125,8 @@ fn get_password_blocking(key: &str) -> Result<Option<String>, Error> {
 }
 
 fn set_password_blocking(key: &str, password: &str) -> Result<(), Error> {
+    #[cfg(windows)]
+    validate_key(key)?;
     ensure_default_store().map_err(|error| keyring_error(key, error))?;
 
     let entry = keyring_core::Entry::new(SERVICE, key)
@@ -129,6 +135,26 @@ fn set_password_blocking(key: &str, password: &str) -> Result<(), Error> {
     entry
         .set_password(password)
         .map_err(|error| keyring_error(key, error))
+}
+
+#[cfg(windows)]
+fn validate_key(key: &str) -> Result<(), Error> {
+    if exceeds_windows_username_limit(key) {
+        return Err(keyring_error(
+            key,
+            format!(
+                "keyring identifier exceeds the Windows limit of \
+                 {WINDOWS_MAX_USERNAME_LEN} UTF-16 code units"
+            ),
+        ));
+    }
+
+    Ok(())
+}
+
+#[cfg(any(windows, test))]
+fn exceeds_windows_username_limit(key: &str) -> bool {
+    key.encode_utf16().count() > WINDOWS_MAX_USERNAME_LEN
 }
 
 fn ensure_default_store() -> keyring_core::Result<()> {
@@ -223,6 +249,14 @@ mod tests {
     }
 
     #[test]
+    fn password_preserves_custom_key() {
+        let key = "Custom Key/日本語.한국어#MiXeD";
+        let password = Password::Key(key.to_string());
+
+        assert_eq!(password.key_or_default(String::new).as_deref(), Some(key));
+    }
+
+    #[test]
     fn password_enabled_uses_default_key() {
         let password = Password::Enabled;
 
@@ -302,5 +336,60 @@ mod tests {
             server_proxy_password_key("libera", "socks5"),
             "servers.libera.proxy.socks5.password"
         );
+    }
+
+    #[test]
+    fn default_key_names_preserve_special_characters_and_case() {
+        assert_eq!(
+            server_password_key("My Network"),
+            "servers.My Network.password"
+        );
+        assert_eq!(
+            server_password_key("example.org/channel"),
+            "servers.example.org/channel.password"
+        );
+        assert_eq!(
+            sasl_plain_password_key("日本語"),
+            "servers.日本語.sasl.plain.password"
+        );
+        assert_eq!(
+            nick_password_key("한국어-network"),
+            "servers.한국어-network.nick_password"
+        );
+        assert_eq!(
+            channel_key("libera", "#halloy"),
+            "servers.libera.channel_keys.#halloy"
+        );
+        assert_ne!(
+            server_password_key("Libera"),
+            server_password_key("libera")
+        );
+    }
+
+    #[test]
+    fn windows_username_length_counts_utf16_code_units() {
+        assert!(!exceeds_windows_username_limit(
+            &"a".repeat(WINDOWS_MAX_USERNAME_LEN)
+        ));
+        assert!(!exceeds_windows_username_limit(&"😀".repeat(256)));
+        assert!(exceeds_windows_username_limit(&"😀".repeat(257)));
+    }
+
+    #[test]
+    fn normal_identifier_is_within_windows_username_limit() {
+        let key = sasl_plain_password_key("libera");
+
+        assert!(key.encode_utf16().count() <= WINDOWS_MAX_USERNAME_LEN);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_identifier_length_is_validated() {
+        assert!(validate_key(&sasl_plain_password_key("libera")).is_ok());
+
+        let key = "😀".repeat(257);
+        let error = validate_key(&key).unwrap_err();
+
+        assert!(error.to_string().contains("513 UTF-16 code units"));
     }
 }

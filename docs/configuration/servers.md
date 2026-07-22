@@ -9,6 +9,13 @@ Examples can be found in the following guides:
 - [Connect with soju](../guides/connect-with-soju.md)
 - [Connect with ZNC](../guides/connect-with-znc.md)
 
+::: info Keyring entry names
+Automatic keyring entry names are human-readable, and custom entry names are
+used unchanged. On Windows, entry names are limited to 513 UTF-16 code units
+and are case-insensitive, so names that differ only in capitalization refer to
+the same credential.
+:::
+
 ## `nickname`
 
 The client's nickname.
