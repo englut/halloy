@@ -70,6 +70,21 @@ Proxy password.
 password = "password"
 ```
 
+### `password_keyring`
+
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `proxy.http.password`. Set a string to use a custom entry name.
+
+```toml
+# Type: boolean or string
+# Values: true, false, or any non-empty string
+# Default: false
+
+# Optional
+
+[proxy.http]
+password_keyring = true
+```
+
 ## `socks5`
 
 Socks5 proxy settings.
@@ -132,6 +147,21 @@ Proxy password.
 
 [proxy.socks5]
 password = "password"
+```
+
+### `password_keyring`
+
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `proxy.socks5.password`. Set a string to use a custom entry name.
+
+```toml
+# Type: boolean or string
+# Values: true, false, or any non-empty string
+# Default: false
+
+# Optional
+
+[proxy.socks5]
+password_keyring = true
 ```
 
 ## `tor`

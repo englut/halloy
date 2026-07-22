@@ -108,9 +108,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // shutdown_background without leaks
     rt.shutdown_background();
 
+    // If the config fails to load, then attempt to load the font alone
+    // in order to provide UI as close to configured as possible.
+    // Particularly of use while the font cannot be changed while
+    // the application is running.
+    let font_config = config_load
+        .as_ref()
+        .ok()
+        .map(|config| config.font.clone())
+        .or(Config::load_font())
+        .unwrap_or_default();
+
     // DANGER ZONE - font must be set using config
     // before we do any iced related stuff w/ it
-    font::set(config_load.as_ref().ok());
+    font::set(&font_config);
 
     let destination = data::Url::find_in(std::env::args());
     if let Some(loc) = &destination
@@ -119,7 +130,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let settings = settings(&config_load);
+    let settings = settings(&config_load, &font_config);
     let log_stream = Mutex::new(Some(log_stream));
 
     //tarkah: guess we need to move some stuff into the Halloy::new now.
@@ -155,12 +166,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn settings(config_load: &Result<Config, config::Error>) -> iced::Settings {
-    let default_text_size = config_load
-        .as_ref()
-        .ok()
-        .and_then(|config| config.font.size)
-        .map_or(theme::TEXT_SIZE, f32::from);
+fn settings(
+    config_load: &Result<Config, config::Error>,
+    font_config: &config::Font,
+) -> iced::Settings {
+    let default_text_size =
+        font_config.size.map_or(theme::TEXT_SIZE, f32::from);
 
     let runtime = config_load
         .as_ref()
@@ -241,12 +252,35 @@ struct Halloy {
 }
 
 impl Halloy {
+    fn modal_for_missing_keyring_password(
+        error: &config::Error,
+    ) -> Option<Modal> {
+        match error {
+            config::Error::MissingKeyringPasswordEntry {
+                label,
+                context,
+                key,
+            } => Some(Modal::KeyringPassword(
+                modal::keyring_password::KeyringPassword::new(
+                    label.clone(),
+                    context.clone(),
+                    key.clone(),
+                ),
+            )),
+            _ => None,
+        }
+    }
+
     pub fn load_from_state(
         main_window: window::Id,
         config_load: Result<Config, config::Error>,
         current_mode: appearance::Mode,
     ) -> (Halloy, Task<Message>) {
         let main_window = Window::new(main_window);
+        let modal = config_load
+            .as_ref()
+            .err()
+            .and_then(Self::modal_for_missing_keyring_password);
         let load_dashboard = |config: &Config| match data::Dashboard::load() {
             Ok(dashboard) => {
                 if config.pane.restore_on_launch {
@@ -315,7 +349,7 @@ impl Halloy {
                 servers,
                 controllers: stream::Map::default(),
                 config,
-                modal: None,
+                modal,
                 main_window,
                 focused_window: None,
                 pending_logs: vec![],
@@ -1120,6 +1154,26 @@ impl Halloy {
                                 ]);
                             }
                         }
+                        modal::Event::KeyringPasswordStored => {
+                            self.modal = None;
+
+                            let reload = if matches!(
+                                self.screen,
+                                Screen::Dashboard(_)
+                            ) {
+                                Task::perform(
+                                    Config::load(),
+                                    Message::ConfigReloaded,
+                                )
+                            } else {
+                                Task::perform(
+                                    Config::load(),
+                                    Message::ScreenConfigReloaded,
+                                )
+                            };
+
+                            return command.map(Message::Modal).chain(reload);
+                        }
                         modal::Event::AcceptNewServer => {
                             if let Some(Modal::ServerConnect {
                                 server,
@@ -1464,8 +1518,8 @@ impl Halloy {
 
             // Modals might have a id representing which window to be presented on.
             // If modal has no id, we show them on main_window.
-            match (&self.modal, &self.screen) {
-                (Some(modal), Screen::Dashboard(_))
+            match &self.modal {
+                Some(modal)
                     if modal.window_id() == Some(self.main_window.id)
                         || modal.window_id().is_none() =>
                 {
@@ -1677,7 +1731,9 @@ impl Halloy {
                 return runtime_task.unwrap_or_else(Task::none);
             }
             Err(error) => {
-                self.modal = Some(Modal::ReloadConfigurationError(error));
+                let modal = Self::modal_for_missing_keyring_password(&error)
+                    .unwrap_or_else(|| Modal::ReloadConfigurationError(error));
+                self.modal = Some(modal);
             }
         }
 

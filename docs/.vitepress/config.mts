@@ -38,6 +38,10 @@ const guidesItems = [
     text: "Storing Passwords in a File",
     link: "/guides/password-file",
   },
+  {
+    text: "Storing Passwords in the System Keyring",
+    link: "/guides/keyring",
+  },
   { text: "File Uploads", link: "/guides/filehost" },
   { text: "Unix Signals", link: "/guides/unix-signals" },
   { text: "Text Formatting", link: "/guides/text-formatting" },

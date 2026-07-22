@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::{LazyLock, OnceLock};
 
 use data::appearance::theme::FontStyle;
-use data::{Config, config};
+use data::config;
 use iced::font;
 use iced::widget::text::LineHeight;
 
@@ -77,40 +77,33 @@ fn default_font() -> iced::Font {
     }
 }
 
-pub fn set(config: Option<&Config>) {
-    let font = config
-        .and_then(|config| config.font.family.clone())
-        .map_or_else(default_font, |family| {
-            iced::Font::with_family(family.as_str())
-        });
-    let stretch =
-        config.map_or(font::Stretch::Normal, |config| config.font.stretch);
-    let weight =
-        config.map_or(font::Weight::Normal, |config| config.font.weight);
-    let bold_weight = config
-        .and_then(|config| config.font.bold_weight)
-        .unwrap_or(match weight {
-            font::Weight::Thin => font::Weight::Normal,
-            font::Weight::ExtraLight => font::Weight::Medium,
-            font::Weight::Light => font::Weight::Semibold,
-            font::Weight::Normal => font::Weight::Bold,
-            font::Weight::Medium => font::Weight::ExtraBold,
-            font::Weight::Semibold
-            | font::Weight::Bold
-            | font::Weight::ExtraBold
-            | font::Weight::Black => font::Weight::Black,
-        });
+pub fn set(config: &config::Font) {
+    let font = config.family.as_ref().map_or_else(default_font, |family| {
+        iced::Font::with_family(family.as_str())
+    });
 
-    MONO.set(font, stretch, weight, bold_weight);
-    MONO_BOLD.set(font, stretch, weight, bold_weight);
-    MONO_ITALICS.set(font, stretch, weight, bold_weight);
-    MONO_BOLD_ITALICS.set(font, stretch, weight, bold_weight);
+    let bold_weight = config.bold_weight.unwrap_or(match config.weight {
+        font::Weight::Thin => font::Weight::Normal,
+        font::Weight::ExtraLight => font::Weight::Medium,
+        font::Weight::Light => font::Weight::Semibold,
+        font::Weight::Normal => font::Weight::Bold,
+        font::Weight::Medium => font::Weight::ExtraBold,
+        font::Weight::Semibold
+        | font::Weight::Bold
+        | font::Weight::ExtraBold
+        | font::Weight::Black => font::Weight::Black,
+    });
 
-    let lh = config
-        .and_then(|c| c.font.line_height)
+    MONO.set(font, config.stretch, config.weight, bold_weight);
+    MONO_BOLD.set(font, config.stretch, config.weight, bold_weight);
+    MONO_ITALICS.set(font, config.stretch, config.weight, bold_weight);
+    MONO_BOLD_ITALICS.set(font, config.stretch, config.weight, bold_weight);
+
+    let line_height = config
+        .line_height
         .map(LineHeight::Relative)
         .unwrap_or_default();
-    let _ = LINE_HEIGHT.set(lh);
+    let _ = LINE_HEIGHT.set(line_height);
 }
 
 pub fn load() -> Vec<Cow<'static, [u8]>> {
