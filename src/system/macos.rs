@@ -51,6 +51,8 @@ struct Registration(Retained<Observer>);
 impl Registration {
     fn new(sender: mpsc::UnboundedSender<Event>) -> Self {
         let observer = Observer::new(sender);
+        // Workspace associated with the process, shared by all threads
+        // of the app.
         let notification_center =
             NSWorkspace::sharedWorkspace().notificationCenter();
 
