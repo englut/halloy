@@ -50,6 +50,7 @@ Fixed:
 - Apply mode arguments to the correct targets when a `MODE` message mixes added and removed modes (e.g. `-o+v foo bar` de-ops `foo` and voices `bar`)
 - Do not reconnect automatically when the server closes the connection in response to a requested quit
 - Don't show a transient terminal window when running `/exec` on Windows
+- Suppress connection status messages while macOS is asleep
 
 Changed:
 
