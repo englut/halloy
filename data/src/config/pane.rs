@@ -10,6 +10,7 @@ pub struct Pane {
     pub scrollbar: Scrollbar,
     pub restore_on_launch: bool,
     pub gap: Gap,
+    pub always_show_title_bar_buttons: bool,
 }
 
 impl Default for Pane {
@@ -19,6 +20,7 @@ impl Default for Pane {
             scrollbar: Scrollbar::default(),
             restore_on_launch: true,
             gap: Gap::default(),
+            always_show_title_bar_buttons: false,
         }
     }
 }

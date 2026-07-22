@@ -24,6 +24,7 @@ Added:
 - `servers.<name>.do_not_request` can be specified to prevent IRCv3 capability requests (e.g. `servers.<name>.do_not_request = [ "labeled-response" ]` will prevent [labeled-response](https://ircv3.net/specs/extensions/labeled-response) from being requested from the server)
 - `follow` option for reroute rules (`servers.<name>.reroute`) to reroute messages to the focused buffer
 - `logs.max_file_count` setting to control the number of Halloy log files that are stored on disk
+- `pane.always_show_title_bar_buttons` setting to prevent pane title bar buttons from being hidden when the pane is not hovered
 
 Fixed:
 
@@ -73,7 +74,7 @@ Thanks:
 
 - Contributions: @englut, @luca020400, @classabbyamp, @KaiKorla, @TheDcoder, @City-busz, @rtmongold, @Gelbpunkt, @zsigisti
 - Bug reports: @luca020400, agent314, @FlooferLand, @englut
-- Feature requests: @FlooferLand
+- Feature requests: @FlooferLand, quark
 
 # 2026.7.2 (2026-06-08)
 
