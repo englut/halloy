@@ -78,7 +78,8 @@ impl Drop for Registration {
         let notification_center =
             NSWorkspace::sharedWorkspace().notificationCenter();
 
-        // SAFETY: This observer was registered with this notification center.
+        // SAFETY: This observer was registered with this notification center in
+        // Registration::new.
         unsafe { notification_center.removeObserver(&self.0) };
     }
 }
