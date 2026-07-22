@@ -288,6 +288,7 @@ impl Buffer {
         message: Message,
         clients: &mut data::client::Map,
         history: &mut history::Manager,
+        previews: &preview::Collection,
         file_transfers: &mut file_transfer::Manager,
         main_window: &Window,
         config: &Config,
@@ -298,6 +299,7 @@ impl Buffer {
                     message,
                     clients,
                     history,
+                    previews,
                     main_window,
                     config,
                 );
@@ -379,6 +381,7 @@ impl Buffer {
                     message,
                     clients,
                     history,
+                    previews,
                     main_window,
                     config,
                 );
@@ -445,6 +448,7 @@ impl Buffer {
                     message,
                     clients,
                     history,
+                    previews,
                     main_window,
                     config,
                 );
@@ -558,7 +562,7 @@ impl Buffer {
             }
             (Buffer::Logs(state), Message::Logs(message)) => {
                 let (command, event) =
-                    state.update(message, history, clients, config);
+                    state.update(message, history, clients, previews, config);
 
                 let event = event.map(|event| match event {
                     logs::Event::ContextMenu(event) => {
@@ -584,7 +588,7 @@ impl Buffer {
             }
             (Buffer::Highlights(state), Message::Highlights(message)) => {
                 let (command, event) =
-                    state.update(message, history, clients, config);
+                    state.update(message, history, clients, previews, config);
 
                 let event = event.map(|event| match event {
                     highlights::Event::ContextMenu(event) => {

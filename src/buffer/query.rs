@@ -235,6 +235,7 @@ impl Query {
         message: Message,
         clients: &mut data::client::Map,
         history: &mut history::Manager,
+        previews: &preview::Collection,
         main_window: &Window,
         config: &Config,
     ) -> (Task<Message>, Option<Event>) {
@@ -247,6 +248,7 @@ impl Query {
                     Some(&self.buffer),
                     history,
                     clients,
+                    previews,
                     config,
                 );
 

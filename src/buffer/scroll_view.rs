@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use data::buffer::RightAlignmentWidths;
 use data::command::Irc;
-use data::config::actions::NicknameClickAction;
+use data::config::actions::{ImageClickAction, NicknameClickAction};
 use data::config::buffer::{CondensationIcon, HideConsecutiveEnabled};
 use data::dashboard::BufferAction;
 use data::isupport::ChatHistoryState;
@@ -866,6 +866,7 @@ impl State {
         buffer: Option<&buffer::Upstream>,
         history: &mut history::Manager,
         clients: &mut client::Map,
+        previews: &preview::Collection,
         config: &Config,
     ) -> (Task<Message>, Option<Event>) {
         match message {
@@ -1071,7 +1072,28 @@ impl State {
                 );
             }
             Message::Link(message::Link::Url(url)) => {
-                return (Task::none(), Some(Event::OpenUrl(url)));
+                let event = match config.actions.buffer.click_image_url {
+                    ImageClickAction::OpenUrl => Event::OpenUrl(url),
+                    ImageClickAction::Preview => {
+                        let image =
+                            url::Url::parse(&url).ok().and_then(|url| {
+                                previews.get(&url).and_then(|state| match state
+                                {
+                                    preview::State::Loaded(
+                                        data::Preview::Image(image),
+                                    ) => Some(image.clone()),
+                                    _ => None,
+                                })
+                            });
+
+                        image.map_or_else(
+                            || Event::OpenUrl(url),
+                            Event::ImagePreview,
+                        )
+                    }
+                };
+
+                return (Task::none(), Some(event));
             }
             Message::Link(message::Link::User(server, user)) => {
                 let event = match config.actions.buffer.click_username {

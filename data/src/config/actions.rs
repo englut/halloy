@@ -25,6 +25,7 @@ pub struct Buffer {
     pub message_channel: BufferAction,
     pub message_user: BufferAction,
     pub only_contract_expanded_message: bool,
+    pub click_image_url: ImageClickAction,
 }
 
 impl Default for Buffer {
@@ -39,6 +40,7 @@ impl Default for Buffer {
             message_channel: BufferAction::default(),
             message_user: BufferAction::default(),
             only_contract_expanded_message: true,
+            click_image_url: ImageClickAction::default(),
         }
     }
 }
@@ -180,4 +182,12 @@ pub enum NotificationAction {
     OpenBuffer,
     #[default]
     ActivateApplication,
+}
+
+#[derive(Debug, Copy, Clone, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImageClickAction {
+    #[default]
+    OpenUrl,
+    Preview,
 }

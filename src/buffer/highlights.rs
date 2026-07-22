@@ -396,6 +396,7 @@ impl Highlights {
         message: Message,
         history: &mut history::Manager,
         clients: &mut data::client::Map,
+        previews: &preview::Collection,
         config: &Config,
     ) -> (Task<Message>, Option<Event>) {
         match message {
@@ -407,6 +408,7 @@ impl Highlights {
                     None,
                     history,
                     clients,
+                    previews,
                     config,
                 );
 

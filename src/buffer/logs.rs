@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use data::{
-    Config, Image, Preview, Server, client, history, message, metadata, target,
+    Config, Image, Preview, Server, client, history, message, metadata,
+    preview, target,
 };
 use iced::widget::{container, row};
 use iced::{Length, Size, Task};
@@ -137,6 +138,7 @@ impl Logs {
         message: Message,
         history: &mut history::Manager,
         clients: &mut client::Map,
+        previews: &preview::Collection,
         config: &Config,
     ) -> (Task<Message>, Option<Event>) {
         match message {
@@ -148,6 +150,7 @@ impl Logs {
                     None,
                     history,
                     clients,
+                    previews,
                     config,
                 );
 

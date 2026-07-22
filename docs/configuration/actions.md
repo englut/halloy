@@ -135,6 +135,19 @@ All actions on an expanded message will be disabled in favor of closing the mess
 only_contract_expanded_message = false
 ```
 
+### `click_image_url`
+
+Click action when interacting with URLs of images in a message.
+
+```toml
+# Type: string
+# Values: "open-url", "preview"
+# Default: "open-url"
+
+[actions.buffer]
+click_image_url = "preview"
+```
+
 ## `nicklist`
 
 How nicklist actions should be enacted.
