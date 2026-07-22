@@ -55,6 +55,7 @@ pub enum Message {
     MarkServerAsRead(Server),
     QuitApplication,
     Connect(Server),
+    DisableAutoconnect(Server),
     Remove(Server),
     SystemInformation(iced::system::Information),
     ShowMutedBuffers(bool),
@@ -85,6 +86,7 @@ pub enum Event {
     MarkServerAsRead(Server),
     QuitApplication,
     Connect(Server),
+    DisableAutoconnect(Server),
     Remove(Server),
     ShowMutedBuffers(bool),
 }
@@ -183,6 +185,9 @@ impl Sidebar {
             }
             Message::Connect(server) => {
                 (Task::none(), Some(Event::Connect(server)))
+            }
+            Message::DisableAutoconnect(server) => {
+                (Task::none(), Some(Event::DisableAutoconnect(server)))
             }
             Message::Remove(server) => {
                 (Task::none(), Some(Event::Remove(server)))
@@ -533,44 +538,56 @@ impl Sidebar {
                 let casemapping =
                     clients.get_server_casemapping_or_default(server);
 
-                let button = |buffer: buffer::Upstream,
-                              kind: history::Kind,
-                              connected: bool| {
-                    upstream_buffer_button(
-                        config,
-                        panes,
-                        focus,
-                        server_icons,
-                        buffer,
-                        kind,
-                        connected,
-                        server_has_unread,
-                        supports_detach,
-                        casemapping,
-                        history,
-                        width,
-                        theme,
-                    )
-                };
+                let button =
+                    |buffer: buffer::Upstream,
+                     kind: history::Kind,
+                     connection_status: ConnectionStatus| {
+                        upstream_buffer_button(
+                            config,
+                            panes,
+                            focus,
+                            server_icons,
+                            buffer,
+                            kind,
+                            connection_status,
+                            server_has_unread,
+                            supports_detach,
+                            casemapping,
+                            history,
+                            width,
+                            theme,
+                        )
+                    };
 
                 if let Some(state) = clients.state(server) {
                     client_enumeration += 1;
 
                     match state {
-                        data::client::State::Disconnected => {
+                        data::client::State::Disconnected {
+                            autoconnect,
+                            connecting,
+                        } => {
                             // Disconnected server.
                             upstream_buffers.push(button(
                                 buffer::Upstream::Server(server.clone()),
                                 history::Kind::Server(server.clone()),
-                                false,
+                                ConnectionStatus::Disconnected {
+                                    autoconnect: *autoconnect,
+                                    connecting: *connecting,
+                                },
                             ));
                         }
                         data::client::State::Ready(connection) => {
+                            let registration_complete =
+                                connection.registration_complete();
+
                             // Connected server.
                             upstream_buffers.push(button(
                                 buffer::Upstream::Server(server.clone()),
                                 history::Kind::Server(server.clone()),
-                                true,
+                                ConnectionStatus::Connected {
+                                    registration_complete,
+                                },
                             ));
 
                             // Channels from the connected server.
@@ -584,7 +601,9 @@ impl Sidebar {
                                         server.clone(),
                                         channel.clone(),
                                     ),
-                                    true,
+                                    ConnectionStatus::Connected {
+                                        registration_complete,
+                                    },
                                 ));
                             }
 
@@ -604,7 +623,9 @@ impl Sidebar {
                                         server.clone(),
                                         query.clone(),
                                     ),
-                                    true,
+                                    ConnectionStatus::Connected {
+                                        registration_complete,
+                                    },
                                 ));
                             }
 
@@ -886,6 +907,7 @@ enum Entry {
     Context,
     HorizontalRule,
     Connect,
+    DisableAutoconnect,
     MarkAsRead,
     MarkServerAsRead,
     Close(window::Id, pane_grid::Pane),
@@ -905,7 +927,7 @@ impl Entry {
         num_panes: usize,
         open: Option<(window::Id, pane_grid::Pane)>,
         focus: Focus,
-        connected: bool,
+        connection_status: Option<ConnectionStatus>,
         supports_detach: bool,
         has_history: bool,
     ) -> Vec<Self> {
@@ -913,11 +935,25 @@ impl Entry {
 
         let mut entries = vec![Context, HorizontalRule];
 
-        if let buffer::Buffer::Upstream(buffer::Upstream::Server(_)) = buffer {
-            if connected {
-                entries.extend([CloseAllQueries, MarkServerAsRead]);
-            } else {
-                entries.extend([Connect, Remove]);
+        if let buffer::Buffer::Upstream(buffer::Upstream::Server(_)) = buffer
+            && let Some(connection_status) = &connection_status
+        {
+            match connection_status {
+                ConnectionStatus::Connected { .. } => {
+                    entries.extend([CloseAllQueries, MarkServerAsRead]);
+                }
+                ConnectionStatus::Disconnected {
+                    autoconnect,
+                    connecting,
+                } => {
+                    if !*connecting {
+                        entries.push(Connect);
+                    }
+                    if *autoconnect {
+                        entries.push(DisableAutoconnect);
+                    }
+                    entries.push(Remove);
+                }
             }
         }
 
@@ -939,7 +975,9 @@ impl Entry {
             }
         }
 
-        if connected {
+        if connection_status.is_some_and(|connection_status| {
+            matches!(connection_status, ConnectionStatus::Connected { .. })
+        }) {
             if matches!(
                 buffer,
                 buffer::Buffer::Upstream(buffer::Upstream::Channel(_, _))
@@ -962,7 +1000,7 @@ fn upstream_buffer_button<'a>(
     server_icons: &'a server_icon::Manager,
     buffer: buffer::Upstream,
     kind: history::Kind,
-    connected: bool,
+    connection_status: ConnectionStatus,
     server_has_unread: bool,
     supports_detach: bool,
     casemapping: isupport::CaseMap,
@@ -1040,7 +1078,10 @@ fn upstream_buffer_button<'a>(
         theme::text::highlight_indicator
     } else if show_unread_title {
         theme::text::unread_indicator
-    } else if !connected {
+    } else if let ConnectionStatus::Disconnected { connecting, .. } =
+        &connection_status
+        && !*connecting
+    {
         if matches!(&buffer, buffer::Upstream::Server(_)) {
             theme::text::error
         } else {
@@ -1075,11 +1116,30 @@ fn upstream_buffer_button<'a>(
         None
     };
 
-    let indicator = if let buffer::Upstream::Server(_) = &buffer
-        && !connected
+    let indicator = if matches!(buffer, buffer::Upstream::Server(_))
+        && let ConnectionStatus::Disconnected {
+            autoconnect,
+            connecting,
+        } = connection_status
     {
         Some((
-            icon::disconnected().style(theme::text::error),
+            if connecting {
+                icon::connecting().style(theme::text::success)
+            } else if autoconnect {
+                icon::disconnected().style(theme::text::error)
+            } else {
+                icon::not_connected().style(theme::text::error)
+            },
+            dimensions.icon_badge_size,
+        ))
+    } else if matches!(buffer, buffer::Upstream::Server(_))
+        && let ConnectionStatus::Connected {
+            registration_complete,
+        } = connection_status
+        && !registration_complete
+    {
+        Some((
+            icon::connecting().style(theme::text::success),
             dimensions.icon_badge_size,
         ))
     } else if show_highlight_icon
@@ -1267,7 +1327,7 @@ fn upstream_buffer_button<'a>(
         panes.len(),
         open,
         focus,
-        connected,
+        Some(connection_status),
         supports_detach,
         true,
     );
@@ -1361,6 +1421,12 @@ fn upstream_buffer_button<'a>(
                     Entry::Connect => (
                         "Connect to server",
                         Some(Message::Connect(buffer.server().clone())),
+                    ),
+                    Entry::DisableAutoconnect => (
+                        "Disable autoconnect",
+                        Some(Message::DisableAutoconnect(
+                            buffer.server().clone(),
+                        )),
                     ),
                     Entry::Remove => (
                         "Remove server from sidebar",
@@ -1635,7 +1701,7 @@ fn internal_buffer_button<'a>(
         panes.len(),
         open,
         focus,
-        false,
+        None,
         false,
         has_history,
     );
@@ -1898,4 +1964,9 @@ impl Dimensions {
             .max(self.unread_indicator_size)
             .max(self.highlight_indicator_size)
     }
+}
+
+enum ConnectionStatus {
+    Connected { registration_complete: bool },
+    Disconnected { autoconnect: bool, connecting: bool },
 }

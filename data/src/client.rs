@@ -68,7 +68,7 @@ impl Status {
 
 #[derive(Debug)]
 pub enum State {
-    Disconnected,
+    Disconnected { autoconnect: bool, connecting: bool },
     Ready(Client),
 }
 
@@ -183,7 +183,7 @@ pub enum Event {
     OnConnect(on_connect::Stream),
     BouncerNetwork(Server, config::Server),
     AddToSidebar(target::Query),
-    Disconnect(Option<String>),
+    AuthenticationFailed(Option<String>),
     UpdateIcon,
 }
 
@@ -558,6 +558,10 @@ impl Client {
         self.config = config;
 
         events
+    }
+
+    pub fn registration_complete(&self) -> bool {
+        matches!(self.registration_step, RegistrationStep::Complete)
     }
 
     fn quit(&mut self, reason: Option<String>) {
@@ -3027,7 +3031,7 @@ impl Client {
                         self.server
                     );
 
-                    return Ok(vec![Event::Disconnect(Some(
+                    return Ok(vec![Event::AuthenticationFailed(Some(
                         "SASL authentication failure".to_string(),
                     ))]);
                 }
@@ -4725,7 +4729,7 @@ fn continue_chathistory_between(
             | Event::OnConnect(_)
             | Event::BouncerNetwork(_, _)
             | Event::AddToSidebar(_)
-            | Event::Disconnect(_)
+            | Event::AuthenticationFailed(_)
             | Event::UpdateIcon => None,
         });
 
@@ -4774,7 +4778,7 @@ fn continue_chathistory_targets(
             | Event::OnConnect(_)
             | Event::BouncerNetwork(_, _)
             | Event::AddToSidebar(_)
-            | Event::Disconnect(_)
+            | Event::AuthenticationFailed(_)
             | Event::UpdateIcon => None,
         });
 
@@ -4845,8 +4849,43 @@ impl Map {
         self.0.len()
     }
 
-    pub fn disconnected(&mut self, server: Server) {
-        self.0.insert(server, State::Disconnected);
+    pub fn disconnected(&mut self, server: Server, autoconnect: bool) {
+        self.0.insert(
+            server,
+            State::Disconnected {
+                autoconnect,
+                connecting: false,
+            },
+        );
+    }
+
+    pub fn connection_failed(&mut self, server: &Server, autoconnect: bool) {
+        if let Some(State::Disconnected {
+            autoconnect: server_autoconnect,
+            connecting,
+        }) = self.0.get_mut(server)
+        {
+            *server_autoconnect = autoconnect;
+            *connecting = false;
+        } else {
+            self.disconnected(server.clone(), autoconnect);
+        }
+    }
+
+    pub fn autoconnect_disabled(&mut self, server: &Server) {
+        if let Some(State::Disconnected { autoconnect, .. }) =
+            self.0.get_mut(server)
+        {
+            *autoconnect = false;
+        }
+    }
+
+    pub fn connecting(&mut self, server: &Server) {
+        if let Some(State::Disconnected { connecting, .. }) =
+            self.0.get_mut(server)
+        {
+            *connecting = true;
+        }
     }
 
     pub fn ready(&mut self, server: Server, client: Client) {
@@ -4872,7 +4911,7 @@ impl Map {
 
     pub fn remove(&mut self, server: &Server) -> Option<Client> {
         self.0.remove(server).and_then(|state| match state {
-            State::Disconnected => None,
+            State::Disconnected { .. } => None,
             State::Ready(client) => Some(client),
         })
     }
@@ -5526,7 +5565,7 @@ impl Map {
 
     pub fn status(&self, server: &Server) -> Status {
         self.0.get(server).map_or(Status::Unavailable, |s| match s {
-            State::Disconnected => Status::Disconnected,
+            State::Disconnected { .. } => Status::Disconnected,
             State::Ready(_) => Status::Connected,
         })
     }
@@ -5550,7 +5589,7 @@ impl Map {
         self.0
             .get(server)
             .and_then::<&dyn metadata::Registry, _>(|state| match state {
-                State::Disconnected => None,
+                State::Disconnected { .. } => None,
                 State::Ready(client) => Some(&client.registry),
             })
             .unwrap_or(metadata::EMPTY)

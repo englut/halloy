@@ -331,6 +331,19 @@ The amount of time in seconds before attempting to reconnect to the server when 
 reconnect_delay = 10
 ```
 
+## `max_connection_attempts`
+
+Maximum number of connection attempts before autoconnect is disabled.  Connection attempts can be manually restarted from the context menu (right-click menu) on the server buffer.
+
+```toml
+# Type: integer
+# Values: any positive integer
+# Default: 10
+
+[servers.<name>]
+max_connection_attempts = 10
+```
+
 ## `should_ghost`
 
 Whether the client should use NickServ GHOST to reclaim its primary nickname if it is in use.

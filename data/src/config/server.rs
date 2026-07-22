@@ -18,7 +18,7 @@ use crate::config::sidebar::OrderChannelsBy;
 use crate::serde::{
     deserialize_path_buf_with_path_transformations,
     deserialize_path_buf_with_path_transformations_maybe,
-    deserialize_u64_positive_integer,
+    deserialize_u16_positive_integer, deserialize_u64_positive_integer,
 };
 use crate::{config, isupport, metadata, target};
 
@@ -96,6 +96,9 @@ pub struct Server {
     /// The amount of time in seconds before attempting to reconnect to the server when disconnected.
     #[serde(deserialize_with = "deserialize_duration_from_secs")]
     pub reconnect_delay: Duration,
+    /// Maximum number of connection attempts until automatic connection attempts are halted.
+    #[serde(deserialize_with = "deserialize_u16_positive_integer")]
+    pub max_connection_attempts: u16,
     /// Whether the client should use NickServ GHOST to reclaim its primary nickname if it is in
     /// use. This has no effect if `nick_password` is not set.
     pub should_ghost: bool,
@@ -233,6 +236,31 @@ impl Server {
             ..self.clone()
         }
     }
+
+    pub fn has_same_connection_settings(
+        &self,
+        default_proxy: Option<&config::Proxy>,
+        other: &Self,
+        other_default_proxy: Option<&config::Proxy>,
+    ) -> bool {
+        self.server != other.server
+            || self.port != other.port
+            || self.use_tls != other.use_tls
+            || self.use_websocket != other.use_websocket
+            || self.websocket_path != other.websocket_path
+            || self.dangerously_accept_invalid_certs
+                != other.dangerously_accept_invalid_certs
+            || self.root_cert_path != other.root_cert_path
+            || self.proxy.as_ref().or(default_proxy)
+                != other.proxy.as_ref().or(other_default_proxy)
+            || self.username != other.username
+            || self.password != other.password
+            || self.password_file != other.password_file
+            || self.password_file_first_line_only
+                != other.password_file_first_line_only
+            || self.password_command != other.password_command
+            || self.sasl != other.sasl
+    }
 }
 
 impl Default for Server {
@@ -262,6 +290,7 @@ impl Default for Server {
             ping_time: 180,
             ping_timeout: 20,
             reconnect_delay: Duration::from_secs(10),
+            max_connection_attempts: 10,
             should_ghost: Default::default(),
             ghost_sequence: vec!["REGAIN".into()],
             umodes: Option::default(),

@@ -26,6 +26,7 @@ Added:
 - `logs.max_file_count` setting to control the number of Halloy log files that are stored on disk
 - `pane.always_show_title_bar_buttons` setting to prevent pane title bar buttons from being hidden when the pane is not hovered
 - Allow image preview on URL click
+- `servers.<name>.max_connection_attempts` setting to control the number of connection of attempts made before autoconnect is automatically disabled (defaults to 10)
 
 Fixed:
 
@@ -71,6 +72,7 @@ Changed:
 - `keyboard.file_transfers` shortcut is disabled when `file_transfer.enabled = false`
 - Rerouted messages are marked with a icon next to the nickname
 - More than one Halloy log file can be saved (configurable, defaults to 4);  accordingly there is not a singular log file `<data_dir>/halloy/halloy.log`, instead log files are placed in `<data_dir>/halloy/logs/`
+- When SASL authentication fails, after disconnecting from the server connection will be automatically re-tried if `servers.<name>.autoconnect` is enabled
 
 Thanks:
 
