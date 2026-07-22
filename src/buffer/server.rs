@@ -62,6 +62,7 @@ pub enum Event {
     InputSent {
         history_task: Task<history::manager::Message>,
         open_buffers: Vec<(Target, BufferAction)>,
+        was_join_command: bool,
     },
     FilehostUpload {
         server: data::server::Server,
@@ -442,6 +443,7 @@ impl Server {
                     Some(input_view::Event::InputSent {
                         history_task,
                         open_buffers,
+                        was_join_command,
                     }) => (
                         Task::batch(vec![
                             command,
@@ -452,6 +454,7 @@ impl Server {
                         Some(Event::InputSent {
                             history_task,
                             open_buffers,
+                            was_join_command,
                         }),
                     ),
                     Some(input_view::Event::OpenBuffers {

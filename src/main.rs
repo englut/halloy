@@ -1361,6 +1361,7 @@ impl Halloy {
                             &mut self.clients,
                             buffer_action,
                             &self.config,
+                            true,
                         ));
                     }
 
