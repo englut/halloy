@@ -2,15 +2,26 @@ use std::io;
 
 use bytes::BytesMut;
 use proto::{Message, format, parse};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::codec::{Decoder, Encoder};
 
 pub type ParseResult<T = Message, E = parse::Error> = std::result::Result<T, E>;
 
-pub struct Codec;
-
-/// Maximum bytes buffered for a single IRC line before it is rejected. Generous headroom over the
-/// IRCv3 message-tags limit (8191) plus the 512-byte message.
+/// Maximum bytes buffered for a single IRC line before it is rejected.
+/// Generous headroom over the / IRCv3 message-tags limit (8191;
+/// https://ircv3.net/specs/extensions/message-tags#size-limit) plus the
+/// 512-byte message.
 const MAX_LINE_LENGTH: usize = 16 * 1024;
+
+pub struct Codec {
+    logger: Option<UnboundedSender<CodecLog>>,
+}
+
+impl Codec {
+    pub fn new(logger: Option<UnboundedSender<CodecLog>>) -> Self {
+        Self { logger }
+    }
+}
 
 impl Decoder for Codec {
     type Item = ParseResult;
@@ -24,12 +35,26 @@ impl Decoder for Codec {
             // Guard against a peer that never sends CRLF: without a cap the framed stream would
             // buffer the "line" without bound, exhausting memory from a single connection.
             if src.len() > MAX_LINE_LENGTH {
+                if let Some(logger) = &self.logger {
+                    let _ = logger.send(CodecLog::Received(
+                        String::from_utf8_lossy(src).to_string(),
+                    ));
+                }
+
                 return Err(Error::LineTooLong);
             }
             return Ok(None);
         };
 
-        Ok(Some(parse::message_bytes(&src.split_to(pos + 2))))
+        let bytes = src.split_to(pos + 2);
+
+        if let Some(logger) = &self.logger {
+            let _ = logger.send(CodecLog::Received(
+                String::from_utf8_lossy(&bytes).to_string(),
+            ));
+        }
+
+        Ok(Some(parse::message_bytes(&bytes)))
     }
 }
 
@@ -43,10 +68,23 @@ impl Encoder<Message> for Codec {
     ) -> Result<(), Self::Error> {
         let encoded = format::message(message);
 
-        dst.extend(encoded.into_bytes());
+        let bytes = encoded.into_bytes();
+
+        if let Some(logger) = &self.logger {
+            let _ = logger.send(CodecLog::Sent(
+                String::from_utf8_lossy(&bytes).to_string(),
+            ));
+        }
+
+        dst.extend(bytes);
 
         Ok(())
     }
+}
+
+pub enum CodecLog {
+    Received(String),
+    Sent(String),
 }
 
 #[derive(Debug, thiserror::Error)]

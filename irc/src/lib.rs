@@ -2,7 +2,7 @@
 
 pub use tokio_util::codec::BytesCodec;
 
-pub use self::codec::Codec;
+pub use self::codec::{Codec, CodecLog};
 pub use self::connection::Connection;
 
 pub mod codec;

@@ -1,19 +1,23 @@
 use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use futures::channel::mpsc;
 use futures::never::Never;
 use futures::{FutureExt, SinkExt, StreamExt, future, stream};
 use irc::proto::{self, Command, command};
-use irc::{Connection, codec, connection};
+use irc::{CodecLog, Connection, codec, connection};
+use tokio::fs::{self, File};
+use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::time::{self, Instant, Interval};
 
 use crate::client::Client;
+use crate::config::server::IrcProtocolLogFormat;
 use crate::server::Server;
 use crate::time::Posix;
-use crate::{config, message, server};
+use crate::{config, environment, message, server};
 
 const QUIT_REQUEST_TIMEOUT: Duration = Duration::from_millis(400);
 
@@ -602,8 +606,23 @@ async fn connect(
     config: Arc<config::Server>,
     proxy: Option<config::Proxy>,
 ) -> Result<(Stream, Client), connection::Error> {
+    let logger = if config.irc_protocol_log.enabled {
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+
+        tokio::task::spawn(log_codec(
+            server.clone(),
+            config.irc_protocol_log,
+            receiver,
+        ));
+
+        Some(sender)
+    } else {
+        None
+    };
+
     let connection =
-        Connection::new(config.connection(proxy), irc::Codec).await?;
+        Connection::new(config.connection(proxy), irc::Codec::new(logger))
+            .await?;
 
     let (sender, receiver) = mpsc::channel(100);
 
@@ -619,6 +638,154 @@ async fn connect(
         },
         client,
     ))
+}
+
+async fn log_codec(
+    server: Server,
+    config: config::server::IrcProtocolLog,
+    mut receiver: tokio::sync::mpsc::UnboundedReceiver<CodecLog>,
+) {
+    let log_writer = LogWriter::new(&server).await;
+
+    match log_writer {
+        Ok(mut log_writer) => {
+            let mut set_timeout_to_flush = false;
+
+            while let Some(action) = if set_timeout_to_flush {
+                tokio::time::timeout(
+                    Duration::from_millis(500),
+                    receiver.recv(),
+                )
+                .await
+                .transpose()
+            } else {
+                receiver.recv().await.map(Ok)
+            } {
+                match action {
+                    Ok(message) => {
+                        log_writer.write(message, &config).await;
+                        set_timeout_to_flush = true;
+                    }
+                    Err(_) => {
+                        log_writer.flush().await;
+                        set_timeout_to_flush = false;
+                    }
+                }
+            }
+
+            log_writer.shutdown().await;
+        }
+        Err(error) => {
+            log::error!("unable to create log writer for {server}: {error}");
+        }
+    }
+}
+
+struct LogWriter {
+    log_dir: PathBuf,
+    date_writer: Option<(NaiveDate, BufWriter<File>)>,
+}
+
+impl LogWriter {
+    pub async fn new(server: &Server) -> Result<Self, std::io::Error> {
+        let data_dir = environment::data_dir();
+
+        let log_dir =
+            data_dir.join("irc_protocol_logs").join(server.to_string());
+
+        if !log_dir.exists() {
+            fs::create_dir_all(&log_dir).await?;
+        }
+
+        Ok(Self {
+            log_dir,
+            date_writer: None,
+        })
+    }
+
+    pub async fn write(
+        &mut self,
+        message: CodecLog,
+        config: &config::server::IrcProtocolLog,
+    ) {
+        let now = Local::now();
+
+        let today = match config.timestamp {
+            config::logs::Timestamp::Local => now.date_naive(),
+            config::logs::Timestamp::Utc => now.to_utc().date_naive(),
+        };
+
+        if let Some((date, writer)) = &mut self.date_writer {
+            if today != *date {
+                let _ = writer.flush().await;
+
+                self.create_date_writer(today).await;
+            }
+        } else {
+            self.create_date_writer(today).await;
+        }
+
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer
+                .write_all(LogWriter::format(message, now, config).as_bytes())
+                .await;
+        }
+    }
+
+    async fn create_date_writer(&mut self, date: NaiveDate) {
+        let log_file = date.format("%Y-%m-%d.log").to_string();
+
+        self.date_writer = File::options()
+            .append(true)
+            .create(true)
+            .open(self.log_dir.join(log_file))
+            .await
+            .ok()
+            .map(|writer| (date, BufWriter::new(writer)));
+    }
+
+    fn format(
+        message: CodecLog,
+        received_at: DateTime<Local>,
+        config: &config::server::IrcProtocolLog,
+    ) -> String {
+        let received_at_format = "%H:%M:%S%.3f";
+        let received_at = match config.timestamp {
+            config::logs::Timestamp::Local => {
+                received_at.format(received_at_format)
+            }
+            config::logs::Timestamp::Utc => {
+                received_at.to_utc().format(received_at_format)
+            }
+        };
+
+        let (direction, divider, message_content) = match config.format {
+            IrcProtocolLogFormat::Halloy => match message {
+                CodecLog::Received(content) => ("RECEIVED", " -- ", content),
+                CodecLog::Sent(content) => ("  SENT  ", " -- ", content),
+            },
+            IrcProtocolLogFormat::Goguma => match message {
+                CodecLog::Received(content) => ("<-", " ", content),
+                CodecLog::Sent(content) => ("->", " ", content),
+            },
+        };
+
+        format!("{received_at} {direction}{divider}{message_content}")
+    }
+
+    pub async fn flush(&mut self) {
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer.flush().await;
+        }
+    }
+
+    pub async fn shutdown(&mut self) {
+        if let Some((_, writer)) = &mut self.date_writer {
+            let _ = writer.flush().await;
+
+            let _ = writer.shutdown().await;
+        }
+    }
 }
 
 struct Batch {

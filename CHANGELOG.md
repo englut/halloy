@@ -27,6 +27,8 @@ Added:
 - `pane.always_show_title_bar_buttons` setting to prevent pane title bar buttons from being hidden when the pane is not hovered
 - Allow image preview on URL click
 - `servers.<name>.max_connection_attempts` setting to control the number of connection of attempts made before autoconnect is automatically disabled (defaults to 10)
+- `logs.file_timestamp` setting to control what timezone is used for timestamps in log files and log file names
+- `servers.<name>.irc_protocol_log` settings to enable logging of the IRC protocol messages sent-to / received-from the server
 
 Fixed:
 

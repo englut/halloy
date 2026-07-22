@@ -42,15 +42,23 @@ fn file_dispatch(
         return None;
     }
 
-    data::log::file().ok().map(|log_file| {
+    data::log::file(config.file_timestamp).ok().map(|log_file| {
         let file_level_filter = env_rust_log
             .map_or(log::LevelFilter::from(config.file_level), |env| {
                 env.to_level_filter()
             });
 
         fern::Dispatch::new()
-            .format(|out, message, record| {
-                let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");
+            .format(move |out, message, record| {
+                let timestamp_format = "%H:%M:%S%.3f";
+                let timestamp = match config.file_timestamp {
+                    config::logs::Timestamp::Local => {
+                        chrono::Local::now().format(timestamp_format)
+                    }
+                    config::logs::Timestamp::Utc => {
+                        chrono::Utc::now().format(timestamp_format)
+                    }
+                };
 
                 if message
                     .as_str()

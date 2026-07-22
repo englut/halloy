@@ -14,6 +14,7 @@ use crate::capabilities::Capability;
 use crate::config::inclusivities::{
     Inclusivities, is_target_channel_included, is_target_query_included,
 };
+use crate::config::logs::Timestamp;
 use crate::config::sidebar::OrderChannelsBy;
 use crate::serde::{
     deserialize_path_buf_with_path_transformations,
@@ -156,6 +157,8 @@ pub struct Server {
     pub icon: Icon,
     /// A list of capabilities not to request from the server (even if present).
     pub do_not_request: Vec<Capability>,
+    /// Whether & how to log all IRC protocol messages
+    pub irc_protocol_log: IrcProtocolLog,
 }
 
 impl Server {
@@ -260,6 +263,7 @@ impl Server {
                 != other.password_file_first_line_only
             || self.password_command != other.password_command
             || self.sasl != other.sasl
+            || self.irc_protocol_log != other.irc_protocol_log
     }
 }
 
@@ -316,6 +320,7 @@ impl Default for Server {
             metadata: HashMap::default(),
             icon: Icon::default(),
             do_not_request: vec![],
+            irc_protocol_log: IrcProtocolLog::default(),
         }
     }
 }
@@ -678,4 +683,21 @@ pub async fn read_from_command(
             output.stderr,
         )?))
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct IrcProtocolLog {
+    pub enabled: bool,
+    pub format: IrcProtocolLogFormat,
+    pub timestamp: Timestamp,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IrcProtocolLogFormat {
+    #[default]
+    Halloy,
+    Goguma,
+    // TODO: ZNC format
 }
