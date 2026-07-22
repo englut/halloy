@@ -2,13 +2,6 @@
 
 Proxy settings for Halloy.
 
-::: info Keyring entry names
-Automatic keyring entry names are human-readable, and custom entry names are
-used unchanged. On Windows, entry names are limited to 513 UTF-16 code units
-and are case-insensitive, so names that differ only in capitalization refer to
-the same credential.
-:::
-
 ::: info
 [Preview](/configuration/preview) requests will be routed through the same proxy that the corresponding message is routed through (i.e. if a proxy is configured for a server, then all previews for messages on that server will be routed through the proxy).  Except for the for the [Tor](#tor) proxy;  when utilizing the Tor proxy preview requests are disabled.
 :::
@@ -79,7 +72,7 @@ password = "password"
 
 ### `password_keyring`
 
-Read `password` from the system keyring. Set to `true` to use the automatic keyring entry name `proxy.http.password`, or set a string to use a custom keyring entry name.
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `proxy.http.password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string
@@ -158,7 +151,7 @@ password = "password"
 
 ### `password_keyring`
 
-Read `password` from the system keyring. Set to `true` to use the automatic keyring entry name `proxy.socks5.password`, or set a string to use a custom keyring entry name.
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `proxy.socks5.password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string

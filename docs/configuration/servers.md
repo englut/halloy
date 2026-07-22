@@ -9,13 +9,6 @@ Examples can be found in the following guides:
 - [Connect with soju](../guides/connect-with-soju.md)
 - [Connect with ZNC](../guides/connect-with-znc.md)
 
-::: info Keyring entry names
-Automatic keyring entry names are human-readable, and custom entry names are
-used unchanged. On Windows, entry names are limited to 513 UTF-16 code units
-and are case-insensitive, so names that differ only in capitalization refer to
-the same credential.
-:::
-
 ## `nickname`
 
 The client's nickname.
@@ -44,7 +37,7 @@ nick_password = ""
 
 ## `nick_password_keyring`
 
-Read `nick_password` from the system keyring. Set to `true` to use the automatic keyring entry name `servers.<name>.nick_password`, or set a string to use a custom keyring entry name.
+Read `nick_password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `servers.<name>.nick_password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string
@@ -200,7 +193,7 @@ password = ""
 
 ## `password_keyring`
 
-Read `password` from the system keyring. Set to `true` to use the automatic keyring entry name `servers.<name>.password`, or set a string to use a custom keyring entry name.
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `servers.<name>.password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string
@@ -290,7 +283,7 @@ channel_keys = { "#foo" = "password" }
 
 ## `channel_keys_keyring`
 
-A mapping of channel names to system keyring entries for join-on-connect. Set a channel to `true` to use the automatic keyring entry name `servers.<name>.channel_keys.<channel>`, or set a string to use a custom keyring entry name.
+A map of channel names to [system keyring](../guides/keyring.md) entries. Set a channel to `true` to use `servers.<name>.channel_keys.<channel>`. Set a string to use a custom entry name.
 
 ```toml
 # Type: map
@@ -619,7 +612,7 @@ username = "username"
 password_keyring = true
 ```
 
-With `password_keyring = true`, the automatic keyring entry names are `servers.<name>.proxy.http.password` and `servers.<name>.proxy.socks5.password`.
+With `password_keyring = true`, Halloy uses `servers.<name>.proxy.http.password` or `servers.<name>.proxy.socks5.password`. See the [system keyring guide](../guides/keyring.md).
 
 ## `autoconnect`
 
@@ -804,7 +797,7 @@ password = "password"
 
 ### `password_keyring`
 
-Read `password` from the system keyring. Set to `true` to use the automatic keyring entry name `servers.<name>.sasl.plain.password`, or set a string to use a custom keyring entry name.
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `servers.<name>.sasl.plain.password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string
@@ -993,7 +986,7 @@ password = "password"
 
 ##### `password_keyring`
 
-Read `password` from the system keyring. Set to `true` to use the automatic keyring entry name `servers.<name>.filehost.credentials.plain.password`, or set a string to use a custom keyring entry name.
+Read `password` from the [system keyring](../guides/keyring.md). Set this to `true` to use `servers.<name>.filehost.credentials.plain.password`. Set a string to use a custom entry name.
 
 ```toml
 # Type: boolean or string
