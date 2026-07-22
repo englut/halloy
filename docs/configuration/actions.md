@@ -137,7 +137,7 @@ only_contract_expanded_message = false
 
 ### `click_image_url`
 
-Click action for when interaction with URLs of images in a message.
+Click action when interacting with URLs of images in a message.
 
 ```toml
 # Type: string
