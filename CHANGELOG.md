@@ -14,6 +14,7 @@ Added:
 - Optional `font.code` setting for code-formatted text
 - Settings to control how internal and server buffers are opened from the sidebar (`actions.sidebar.internal` and `actions.sidebar.server`)
 - `buffer.nickname.offline` supports `"dimmed"` / `{ dimmed = float }`, and `{ color = "theme"|"nickname", alpha = ...}` so theme offline color and dimming can be combined
+- Animate gifs for previews
 
 Fixed:
 
@@ -38,7 +39,7 @@ Thanks:
 
 - Contributions: @rollecode, @luca020400, @rtmongold, @tranzystorekk, @englut
 - Bug reports: @sebbu2, @dpedu, kurwavidae, @ncfavier, wwWraith, kurwavidae, @SRAZKVT
-- Feature requests: @daniiooo, @fabricionaweb, @RoboDanjal, @AbandonedCranium, tbo, ivocavalcante, @sebbu2, @coraxioU9, @ncfavier
+- Feature requests: @daniiooo, @fabricionaweb, @RoboDanjal, @AbandonedCranium, tbo, ivocavalcante, @sebbu2, @coraxioU9, @ncfavier, @BigOjisan
 
 # 2026.8 (2026-07-24)
 

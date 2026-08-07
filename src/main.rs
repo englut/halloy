@@ -1491,7 +1491,7 @@ impl Halloy {
                     widget::modal(
                         content,
                         modal
-                            .view(&self.config.font, &self.theme)
+                            .view(&self.config, &self.theme)
                             .map(Message::Modal),
                         || Message::Modal(modal::Message::Cancel),
                         0.8,
@@ -1520,9 +1520,7 @@ impl Halloy {
             match &self.modal {
                 Some(modal) if modal.window_id() == Some(id) => widget::modal(
                     content,
-                    modal
-                        .view(&self.config.font, &self.theme)
-                        .map(Message::Modal),
+                    modal.view(&self.config, &self.theme).map(Message::Modal),
                     || Message::Modal(modal::Message::Cancel),
                     0.8,
                 ),
@@ -1730,7 +1728,8 @@ impl Halloy {
                         dashboard
                             .reload_visible_previews(
                                 &self.clients,
-                                &self.config,
+                                &self.config.preview,
+                                None,
                             )
                             .map(Message::Dashboard),
                     );

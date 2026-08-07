@@ -272,7 +272,7 @@ async fn fetch(
         cache.account_blob(bytes.len() as u64, image_path.clone());
     }
 
-    Ok(Image::new(format, url, digest, image_path))
+    Ok(Image::new(format, url, digest, image_path, None))
 }
 
 #[derive(Debug, thiserror::Error)]

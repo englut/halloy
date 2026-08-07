@@ -1,5 +1,7 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use iced_gif::widget::gif;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -50,6 +52,8 @@ pub struct Image {
     pub url: Url,
     pub digest: HexDigest,
     pub path: PathBuf,
+    #[serde(skip)]
+    pub frames: Option<Arc<gif::Frames>>,
 }
 
 impl Image {
@@ -58,12 +62,14 @@ impl Image {
         url: Url,
         digest: HexDigest,
         path: PathBuf,
+        frames: Option<Arc<gif::Frames>>,
     ) -> Self {
         Self {
             format,
             url,
             digest,
             path,
+            frames,
         }
     }
 }

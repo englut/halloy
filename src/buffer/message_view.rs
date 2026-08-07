@@ -147,6 +147,29 @@ impl<'a> ChannelQueryLayout<'a> {
         Some(message.hidden_urls.contains(&parsed))
     }
 
+    fn is_url_preview_and_animated_gif(
+        &self,
+        message: &data::Message,
+        url: &str,
+    ) -> bool {
+        if !self.previews_enabled(message)
+            || !self.config.preview.is_enabled(url)
+        {
+            return false;
+        }
+
+        let Some(parsed) = url::Url::parse(url).ok() else {
+            return false;
+        };
+
+        self.previews.get(&parsed).is_some_and(|state| match state {
+            preview::State::Loaded(preview) => {
+                preview.clone().is_animated_gif()
+            }
+            _ => false,
+        })
+    }
+
     fn can_redact_message(&self, message: &data::Message) -> bool {
         // Gate on message-redaction capability first.
         if !self.can_redact {
@@ -471,6 +494,7 @@ impl<'a> ChannelQueryLayout<'a> {
             selected_reactions_refs(message, self.our_nick),
             self.config,
             self.theme,
+            self.is_url_preview_and_animated_gif(message, url.as_str()),
         );
 
         let hide_button = if is_hovered {
@@ -1035,6 +1059,7 @@ impl<'a> ChannelQueryLayout<'a> {
                     message.redaction.is_some(),
                     message.redaction_expanded(&self.config.buffer.redaction),
                     self.preview_hidden_for_url(message, url),
+                    self.is_url_preview_and_animated_gif(message, url),
                     self.can_send_reactions,
                     self.can_redact_message(message),
                     can_send_replies,

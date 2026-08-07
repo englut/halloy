@@ -179,19 +179,31 @@ pub mod button {
 
 pub mod image {
     use iced::{ContentFit, Length, widget};
+    use iced_gif::widget::gif;
 
     use super::Element;
 
-    pub fn from_data<'a, Message>(
+    pub fn from_data<'a, Message: 'a>(
         data: &data::Image,
         round_corners: bool,
         content_fit: ContentFit,
+        max_animation_loops: Option<usize>,
     ) -> Element<'a, Message> {
         match data.format {
-            data::image::Format::Raster(_) => widget::image(&data.path)
-                .border_radius(if round_corners { 4 } else { 0 })
-                .content_fit(content_fit)
-                .into(),
+            data::image::Format::Raster(image_format) => {
+                match (image_format, &data.frames) {
+                    (image::ImageFormat::Gif, Some(frames)) => {
+                        gif(frames.clone(), max_animation_loops)
+                            .border_radius(if round_corners { 4 } else { 0 })
+                            .content_fit(content_fit)
+                            .into()
+                    }
+                    _ => widget::image(&data.path)
+                        .border_radius(if round_corners { 4 } else { 0 })
+                        .content_fit(content_fit)
+                        .into(),
+                }
+            }
             data::image::Format::Svg => {
                 widget::svg(widget::svg::Handle::from_path(&data.path))
                     .width(Length::Shrink)

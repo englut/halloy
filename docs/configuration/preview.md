@@ -364,6 +364,21 @@ the `exclude` setting.
 include = { users = ["BridgeBot"] }
 ```
 
+### `max_animation_loops`
+
+Set the max animation loops for gifs. Default is unset, which means gifs will animate indefinitely. Setting to `0` will disable animated gifs.
+
+Animated gif avatars only support indefinite or disabled states.
+
+```toml
+# Type: integer
+# Values: any integer
+# Default: not set
+
+[preview.image]
+max_animation_loops = 10
+```
+
 ## `image_cache`
 
 Settings to control how the image cache is managed. The cache is stored in:

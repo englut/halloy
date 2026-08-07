@@ -152,7 +152,7 @@ pub fn view<'a>(
                     }),
                     Some(|_| {
                         context_menu::Entry::url_list(
-                            false, None, None, false, false, false,
+                            false, None, None, false, false, false, false,
                         )
                     }),
                     Some(|server, channel| {

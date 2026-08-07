@@ -334,7 +334,7 @@ fn channel_list_view<'a>(
                             Option::<fn(&User) -> Vec<context_menu::Entry>>::None,
                             Some(|_| {
                                 context_menu::Entry::url_list(
-                                    false, None, None, false, false, false,
+                                    false, None, None, false, false, false, false,
                                 )
                             }),
                             Some(|server, channel| {

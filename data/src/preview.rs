@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use ::image::image_dimensions;
 use fancy_regex::Regex;
+use iced_gif::gif;
 use iced_wgpu::wgpu;
 use log;
 use reqwest::header::{self, HeaderValue};
@@ -81,6 +82,7 @@ impl<'a> Previews<'a> {
                 matches!(visibility, Visibility::All | Visibility::BySource)
             }
             State::Error(_) => true,
+            State::GifError(_) => true,
         })
     }
 
@@ -147,6 +149,10 @@ impl Preview {
             },
         }
     }
+
+    pub fn is_animated_gif(self) -> bool {
+        self.image().frames.is_some()
+    }
 }
 
 impl CachedAsset for Preview {
@@ -165,6 +171,7 @@ pub enum State {
     Loading,
     Loaded(Preview),
     Error(LoadError),
+    GifError(gif::Error),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -472,7 +479,7 @@ async fn fetch(
                 cache.account_blob(written as u64, image_path.clone());
 
                 Ok::<Image, LoadError>(Image::new(
-                    format, url, digest, image_path,
+                    format, url, digest, image_path, None,
                 ))
             }
             .await;

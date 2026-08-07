@@ -129,6 +129,7 @@ pub enum Entry {
     OpenUrl,
     HidePreview,
     ShowPreview,
+    RestartAnimation,
     // channel context
     CopyChannel,
     OpenChannelInNewPane,
@@ -283,6 +284,7 @@ impl Entry {
         has_redaction: bool,
         redaction_expanded: Option<bool>,
         preview_hidden: Option<bool>,
+        is_preview_and_animated_gif: bool,
         can_send_reactions: bool,
         can_redact: bool,
         can_send_replies: bool,
@@ -301,16 +303,22 @@ impl Entry {
         entries.push(Entry::CopyUrl);
         entries.push(Entry::OpenUrl);
 
+        entries.push(Entry::HorizontalRule);
+
         if let Some(preview_hidden) = preview_hidden {
-            entries.push(Entry::HorizontalRule);
             entries.push(if preview_hidden {
                 Entry::ShowPreview
             } else {
                 Entry::HidePreview
             });
+
+            if is_preview_and_animated_gif {
+                entries.push(Entry::RestartAnimation);
+            }
+        } else {
+            entries.push(Entry::HorizontalRule);
         }
 
-        entries.push(Entry::HorizontalRule);
         entries.push(Entry::CopyMessage);
         if has_redaction {
             entries.push(Entry::CopyRedaction);
@@ -675,7 +683,7 @@ impl Entry {
                 });
 
                 menu_button(
-                    "Hide Preview".to_string(),
+                    "Hide preview".to_string(),
                     message,
                     length,
                     theme,
@@ -691,7 +699,22 @@ impl Entry {
                 });
 
                 menu_button(
-                    "Show Preview".to_string(),
+                    "Show preview".to_string(),
+                    message,
+                    length,
+                    theme,
+                    config,
+                )
+            }
+            (
+                Entry::RestartAnimation,
+                Context::Url(UrlContext { url, message, .. }),
+            ) => {
+                let message =
+                    message.map(|_| Message::RestartAnimation(url.to_string()));
+
+                menu_button(
+                    "Restart animation".to_string(),
                     message,
                     length,
                     theme,
@@ -989,6 +1012,7 @@ pub enum Message {
     OpenUrl(String),
     HidePreview(message::Hash, String),
     ShowPreview(message::Hash, String),
+    RestartAnimation(String),
     CopyTimestamp(DateTime<Utc>),
     #[allow(clippy::enum_variant_names)]
     DeleteMessage(DateTime<Utc>, message::Hash),
@@ -1022,6 +1046,7 @@ pub enum Event {
     OpenUrl(String),
     HidePreview(message::Hash, String),
     ShowPreview(message::Hash, String),
+    RestartAnimation(String),
     CopyTimestamp(DateTime<Utc>),
     DeleteMessage(DateTime<Utc>, message::Hash),
     ResendMessage(DateTime<Utc>, message::Hash),
@@ -1060,6 +1085,7 @@ pub fn update(message: Message) -> Option<Event> {
         Message::ShowPreview(message, url) => {
             Some(Event::ShowPreview(message, url))
         }
+        Message::RestartAnimation(url) => Some(Event::RestartAnimation(url)),
         Message::CopyTimestamp(date_time) => {
             Some(Event::CopyTimestamp(date_time))
         }
@@ -1157,6 +1183,7 @@ pub fn preview<'a, M>(
     selected_reactions: Vec<&'a str>,
     config: &'a Config,
     theme: &'a Theme,
+    is_animated_gif: bool,
 ) -> Element<'a, M>
 where
     M: From<Message> + 'a,
@@ -1165,6 +1192,7 @@ where
         false, // Previews are hidden if the message is redacted
         None,  // Previews are hidden if the message is redacted
         Some(false),
+        is_animated_gif,
         can_send_reactions && message.id.is_some(),
         can_redact && message.id.is_some(),
         can_send_replies && message.id.is_some(),
@@ -1503,22 +1531,28 @@ fn user_metadata<'a>(
     user: &User,
     registry: &dyn metadata::Registry,
     avatar: Option<&UserAvatar>,
-    config: &Config,
+    config: &'a Config,
     theme: &'a Theme,
     length: Length,
 ) -> Element<'a, Message> {
     let query = target::Query::from(user);
     let avatar_size = config.metadata.avatar.size;
     let avatar: Option<Element<'a, Message>> = avatar.map(|avatar| {
-        let content: Element<'a, Message> = match avatar {
-            UserAvatar::Loaded(data) => {
-                container(image::from_data(data, true, ContentFit::Cover))
-                    .width(f32::from(avatar_size))
-                    .height(f32::from(avatar_size))
-                    .into()
-            }
-            UserAvatar::Pending => avatar_placeholder(avatar_size),
-        };
+        let content: Element<'a, Message> =
+            match avatar {
+                UserAvatar::Loaded(data) => container(image::from_data(
+                    data,
+                    true,
+                    ContentFit::Cover,
+                    config.preview.image.max_animation_loops.and_then(
+                        |loops| if loops == 0 { Some(0) } else { None },
+                    ),
+                ))
+                .width(f32::from(avatar_size))
+                .height(f32::from(avatar_size))
+                .into(),
+                UserAvatar::Pending => avatar_placeholder(avatar_size),
+            };
 
         container(content)
             .width(Length::Fixed(f32::from(avatar_size)))

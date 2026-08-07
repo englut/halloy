@@ -319,6 +319,7 @@ pub struct Image {
     pub max_width: f32,
     /// Maximum height of the image in pixels
     pub max_height: f32,
+    pub max_animation_loops: Option<usize>,
 }
 
 impl Default for Image {
@@ -331,6 +332,7 @@ impl Default for Image {
             round_corners: true,
             max_width: 550.0,
             max_height: 350.0,
+            max_animation_loops: None,
         }
     }
 }

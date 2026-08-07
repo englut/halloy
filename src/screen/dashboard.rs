@@ -29,6 +29,7 @@ use data::{
 use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::{Space, center, column, container, row, stack, text};
 use iced::{Length, Size, Task, Vector, clipboard, padding};
+use iced_gif::widget::gif;
 use irc::proto;
 
 use self::command_bar::CommandBar;
@@ -94,6 +95,7 @@ pub enum Message {
     Client(client::Message),
     ServerIcon(server_icon::Message),
     LoadPreview((url::Url, Result<data::Preview, data::preview::LoadError>)),
+    LoadGifFrames((url::Url, Result<gif::Frames, gif::Error>)),
     NewWindow(window::Id, Pane),
     Filehost(filehost::Message),
     ProceedWithFilehostUpload,
@@ -250,24 +252,31 @@ impl Dashboard {
     pub fn reload_visible_previews(
         &mut self,
         clients: &client::Map,
-        config: &Config,
+        preview_config: &config::Preview,
+        filter_url: Option<url::Url>,
     ) -> Task<Message> {
         Task::batch(
             self.visible_preview_urls_with_preview_clients(
                 clients,
-                &config.preview,
+                preview_config,
             )
             .into_iter()
-            .map(|(url, client)| {
-                Task::perform(
+            .filter_map(|(url, client)| {
+                if let Some(filter_url) = &filter_url
+                    && &url != filter_url
+                {
+                    return None;
+                }
+
+                Some(Task::perform(
                     data::preview::load(
                         url.clone(),
-                        client.clone(),
-                        config.preview.clone(),
+                        client,
+                        preview_config.clone(),
                         self.previews_cache.clone(),
                     ),
-                    move |result| Message::LoadPreview((url.clone(), result)),
-                )
+                    move |result| Message::LoadPreview((url, result)),
+                ))
             }),
         )
     }
@@ -1661,10 +1670,30 @@ impl Dashboard {
             },
             Message::LoadPreview((url, Ok(preview))) => {
                 log::trace!("Preview loaded for {url}");
+
                 if let hash_map::Entry::Occupied(mut entry) =
-                    self.previews.entry(url)
+                    self.previews.entry(url.clone())
                 {
-                    *entry.get_mut() = preview::State::Loaded(preview);
+                    *entry.get_mut() = preview::State::Loaded(preview.clone());
+                }
+
+                if let data::Preview::Image(image) = preview
+                    && matches!(
+                        image.format,
+                        data::image::Format::Raster(image::ImageFormat::Gif)
+                    )
+                {
+                    return (
+                        gif::Frames::load_from_path(image.path).map(
+                            move |result| {
+                                Message::LoadGifFrames((
+                                    url.clone(),
+                                    result.map_err(|error: gif::Error| error),
+                                ))
+                            },
+                        ),
+                        None,
+                    );
                 }
             }
             Message::ServerIcon(message) => {
@@ -1702,6 +1731,23 @@ impl Dashboard {
             Message::CancelFilehostUpload => {
                 let task = self.filehost.cancel().map(Message::Filehost);
                 return (task, None);
+            }
+            Message::LoadGifFrames((url, Ok(frames))) => {
+                log::trace!("GIF frames loaded for {url}");
+                if let Some(preview::State::Loaded(data::Preview::Image(
+                    image,
+                ))) = self.previews.get_mut(&url)
+                {
+                    image.frames = Some(frames.into());
+                }
+
+                return (Task::none(), None);
+            }
+            Message::LoadGifFrames((url, Err(error))) => {
+                log::debug!("Failed to load GIF frames for {url}: {error:?}");
+                if self.previews.contains_key(&url) {
+                    self.previews.insert(url, preview::State::GifError(error));
+                }
             }
         }
 
@@ -2126,9 +2172,24 @@ impl Dashboard {
 
                         if let (Some(kind), Some(url)) = (kind, parsed) {
                             self.history.show_preview(kind, hash, &url);
-                            tasks.push(
-                                self.reload_visible_previews(clients, config),
-                            );
+                            tasks.push(self.reload_visible_previews(
+                                clients,
+                                &config.preview,
+                                None,
+                            ));
+                        }
+
+                        None
+                    }
+                    buffer::context_menu::Event::RestartAnimation(url) => {
+                        let parsed = url::Url::parse(&url).ok();
+
+                        if let Some(url) = parsed {
+                            tasks.push(self.reload_visible_previews(
+                                clients,
+                                &config.preview,
+                                Some(url),
+                            ));
                         }
 
                         None
