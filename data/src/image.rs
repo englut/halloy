@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use iced_gif::widget::gif;
 use serde::{Deserialize, Serialize};
@@ -47,22 +46,22 @@ impl Format {
 pub type Error = image::ImageError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Image {
+pub struct Image<'a> {
     pub format: Format,
     pub url: Url,
     pub digest: HexDigest,
     pub path: PathBuf,
     #[serde(skip)]
-    pub frames: Option<Arc<gif::Frames>>,
+    pub frames: Option<&'a gif::Frames>,
 }
 
-impl Image {
+impl<'a> Image<'a> {
     pub fn new(
         format: Format,
         url: Url,
         digest: HexDigest,
         path: PathBuf,
-        frames: Option<Arc<gif::Frames>>,
+        frames: Option<&'a gif::Frames>,
     ) -> Self {
         Self {
             format,

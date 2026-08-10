@@ -42,7 +42,7 @@ static META_ATTR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 #[derive(Clone, Copy)]
 pub struct Previews<'a> {
-    collection: &'a Collection,
+    collection: &'a Collection<'a>,
     cards_are_visible: Visibility,
     images_are_visible: Visibility,
 }
@@ -99,16 +99,16 @@ impl<'a> Previews<'a> {
     }
 }
 
-pub type Collection = HashMap<Url, State>;
+pub type Collection<'a> = HashMap<Url, State<'a>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Preview {
-    Card(Card),
-    Image(Image),
+pub enum Preview<'a> {
+    Card(Card<'a>),
+    Image(Image<'a>),
 }
 
-impl Preview {
+impl<'a> Preview<'a> {
     pub fn image(&self) -> &Image {
         match self {
             Self::Card(card) => &card.image,
@@ -155,7 +155,7 @@ impl Preview {
     }
 }
 
-impl CachedAsset for Preview {
+impl<'a> CachedAsset for Preview<'a> {
     fn assets(&self) -> Vec<Asset<'_>> {
         match self {
             Preview::Card(c) => {
@@ -167,9 +167,9 @@ impl CachedAsset for Preview {
 }
 
 #[derive(Debug)]
-pub enum State {
+pub enum State<'a> {
     Loading,
-    Loaded(Preview),
+    Loaded(Preview<'a>),
     Error(LoadError),
     GifError(gif::Error),
 }
@@ -180,43 +180,36 @@ enum Kind {
     Avatar,
 }
 
-pub async fn load(
+pub async fn load<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
-    config: config::Preview,
+    config: &'a config::Preview,
     cache: Arc<FileCache>,
-) -> Result<Preview, LoadError> {
+) -> Result<Preview<'a>, LoadError> {
     let is_enabled = config.is_enabled(url.as_str());
-    load_inner(url, client, &config, cache, is_enabled, Kind::Preview).await
+    load_inner(url, client, config, cache, is_enabled, Kind::Preview).await
 }
 
-pub async fn load_avatar(
+pub async fn load_avatar<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
     avatar_config: config::metadata::Avatar,
-    preview_config: config::Preview,
+    preview_config: &'a config::Preview,
     cache: Arc<FileCache>,
-) -> Result<Preview, LoadError> {
+) -> Result<Preview<'a>, LoadError> {
     let is_enabled = avatar_config.is_enabled(url.as_str());
-    load_inner(
-        url,
-        client,
-        &preview_config,
-        cache,
-        is_enabled,
-        Kind::Avatar,
-    )
-    .await
+    load_inner(url, client, preview_config, cache, is_enabled, Kind::Avatar)
+        .await
 }
 
-async fn load_inner(
+async fn load_inner<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
-    preview_config: &config::Preview,
+    preview_config: &'a config::Preview,
     cache: Arc<FileCache>,
     is_enabled: bool,
     kind: Kind,
-) -> Result<Preview, LoadError> {
+) -> Result<Preview<'a>, LoadError> {
     let cache_key_url = canonical_preview_url(&url);
 
     if !is_enabled {
@@ -260,7 +253,7 @@ async fn load_inner(
         }
     };
 
-    if let Ok(ref preview) = result {
+    if let Ok(preview) = &result {
         let image = preview.image();
 
         if matches!(image.format, image::Format::Svg) {
@@ -303,12 +296,12 @@ fn canonical_preview_url(url: &Url) -> Url {
     canonical
 }
 
-async fn load_uncached(
+async fn load_uncached<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
-    config: &config::Preview,
-    cache: &FileCache,
-) -> Result<Preview, LoadError> {
+    config: &'a config::Preview,
+    cache: &'a FileCache,
+) -> Result<Preview<'a>, LoadError> {
     log::trace!("Loading preview for {url}");
 
     match fetch(url.clone(), client.clone(), config, cache).await? {
@@ -358,12 +351,12 @@ async fn load_uncached(
     }
 }
 
-async fn load_avatar_uncached(
+async fn load_avatar_uncached<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
-    config: &config::Preview,
-    cache: &FileCache,
-) -> Result<Preview, LoadError> {
+    config: &'a config::Preview,
+    cache: &'a FileCache,
+) -> Result<Preview<'a>, LoadError> {
     log::trace!("Loading avatar for {url}");
 
     let Fetched::Image(image) = fetch(url, client, config, cache).await? else {
@@ -373,17 +366,17 @@ async fn load_avatar_uncached(
     Ok(Preview::Image(image))
 }
 
-enum Fetched {
-    Image(Image),
+enum Fetched<'a> {
+    Image(Image<'a>),
     Other(Vec<u8>),
 }
 
-async fn fetch(
+async fn fetch<'a>(
     url: Url,
     client: Arc<reqwest::Client>,
-    config: &config::Preview,
-    cache: &FileCache,
-) -> Result<Fetched, LoadError> {
+    config: &'a config::Preview,
+    cache: &'a FileCache,
+) -> Result<Fetched<'a>, LoadError> {
     // WARN: `concurrency` changes aren't picked up until app is relaunched
     let _permit = RATE_LIMIT
         .get_or_init(|| Semaphore::new(config.request.concurrency))

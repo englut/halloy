@@ -175,7 +175,7 @@ iced_wgpu = { git = "https://github.com/squidowl/iced", rev = "8d458d2495f79cc2c
 iced_futures = { git = "https://github.com/squidowl/iced", rev = "8d458d2495f79cc2c90b31a2997139a46e5c0ae4" }
 iced_runtime = { git = "https://github.com/squidowl/iced", rev = "8d458d2495f79cc2c90b31a2997139a46e5c0ae4" }
 iced_widget = { git = "https://github.com/squidowl/iced", rev = "8d458d2495f79cc2c90b31a2997139a46e5c0ae4" }
-iced_gif = { git = "https://github.com/englut/iced_gif", rev = "22e0e289a0c5f11ff49fea851c23d68ed7a89e09" }
+iced_gif = { git = "https://github.com/englut/iced_gif", rev = "887a8be88f968da6a2d6ad8dd8654676f2945b79" }
 
 [profile.packaging]
 inherits = "release"

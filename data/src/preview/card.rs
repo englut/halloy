@@ -4,10 +4,10 @@ use url::Url;
 use super::Image;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Card {
+pub struct Card<'a> {
     pub url: Url,
     pub canonical_url: Url,
-    pub image: Image,
+    pub image: Image<'a>,
     pub title: String,
     pub description: Option<String>,
 }

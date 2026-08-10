@@ -13,18 +13,18 @@ use crate::image::{self, Image};
 use crate::{Server, environment};
 
 #[derive(Debug)]
-pub enum Message {
-    Loaded(Server, Url, Result<Image, LoadError>),
+pub enum Message<'a> {
+    Loaded(Server, Url, Result<Image<'a>, LoadError>),
     Removed(Server),
 }
 
-pub struct Manager {
-    icons: HashMap<Server, Image>,
+pub struct Manager<'a> {
+    icons: HashMap<Server, Image<'a>>,
     pending: HashMap<Server, Url>,
     cache: Arc<FileCache>,
 }
 
-impl Default for Manager {
+impl<'a> Default for Manager<'a> {
     fn default() -> Self {
         Self {
             icons: HashMap::new(),
@@ -34,7 +34,7 @@ impl Default for Manager {
     }
 }
 
-impl Manager {
+impl<'a> Manager<'a> {
     pub fn request(
         &mut self,
         server: &Server,
@@ -79,10 +79,10 @@ impl Manager {
     }
 
     pub fn remove(
-        &mut self,
-        server: &Server,
-        icon_url: Option<&str>,
-    ) -> Task<Message> {
+        &'a mut self,
+        server: &'a Server,
+        icon_url: Option<&'a str>,
+    ) -> Task<Message<'a>> {
         self.pending.remove(server);
         self.icons.remove(server);
 
@@ -102,7 +102,7 @@ impl Manager {
         })
     }
 
-    pub fn update(&mut self, message: Message) {
+    pub fn update(&mut self, message: Message<'a>) {
         match message {
             Message::Loaded(server, icon_url, result) => {
                 if self.pending.get(&server) != Some(&icon_url) {
@@ -153,7 +153,7 @@ impl Manager {
     }
 }
 
-impl CachedAsset for Image {
+impl<'a> CachedAsset for Image<'a> {
     fn assets(&self) -> Vec<Asset<'_>> {
         vec![Asset(self.path.as_path(), &self.digest)]
     }
@@ -165,11 +165,11 @@ fn canonical_icon_url(url: &Url) -> Url {
     canonical
 }
 
-async fn load(
+async fn load<'a>(
     url: Url,
     http_client: Arc<reqwest::Client>,
     cache: Arc<FileCache>,
-) -> Result<Image, LoadError> {
+) -> Result<Image<'a>, LoadError> {
     let cache_key_url = canonical_icon_url(&url);
 
     if let Some(state) = cache.load(&cache_key_url).await {
@@ -197,7 +197,7 @@ async fn load(
     }
 }
 
-async fn remove(url: Url, cache: Arc<FileCache>) {
+async fn remove<'a>(url: Url, cache: Arc<FileCache>) {
     let cache_key_url = canonical_icon_url(&url);
 
     cache.remove::<Image>(&cache_key_url).await;
