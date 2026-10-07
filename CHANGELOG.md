@@ -11,6 +11,7 @@ Fixed:
 - Config editor crash when caret is outside the window bounds
 - Colored emojis are now preferred over outline ones
 - Send a message with enter when autocomplete tooltip is not visible (i.e. don't have to press enter twice when just autocompleted a nickname)
+- Panic when right click on highlighted text in server buffers
 
 Changed:
 

@@ -575,6 +575,7 @@ where
                 if let Some(index) = cursor
                     .position_in(bounds)
                     .and_then(|position| state.paragraph.hit_span(position))
+                    && !self.context_menus.is_empty()
                 {
                     self.context_menus[index].as_widget_mut().update(
                         &mut tree.children[index],
