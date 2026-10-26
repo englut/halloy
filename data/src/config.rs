@@ -138,11 +138,19 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TooltipAutocomplete {
+    Commands,
+    Emojis,
+}
+
+#[derive(Debug, Clone, Default)]
 pub enum Tooltips {
     #[default]
     All,
     Autocomplete,
+    Any(Vec<TooltipAutocomplete>),
     None,
 }
 
@@ -156,6 +164,7 @@ impl<'de> Deserialize<'de> for Tooltips {
         pub enum Data {
             All,
             Autocomplete,
+            Any(Vec<TooltipAutocomplete>),
             None,
         }
 
@@ -177,6 +186,7 @@ impl<'de> Deserialize<'de> for Tooltips {
             Inner::Enum(data) => match data {
                 Data::All => Ok(Tooltips::All),
                 Data::Autocomplete => Ok(Tooltips::Autocomplete),
+                Data::Any(autocompletes) => Ok(Tooltips::Any(autocompletes)),
                 Data::None => Ok(Tooltips::None),
             },
         }
@@ -187,14 +197,21 @@ impl Tooltips {
     pub fn show_for_buttons(&self) -> bool {
         match self {
             Self::All => true,
-            Self::Autocomplete | Self::None => false,
+            Self::Autocomplete | Self::Any(_) | Self::None => false,
         }
     }
 
-    pub fn show_for_autocomplete(&self) -> bool {
-        match self {
-            Self::All | Self::Autocomplete => true,
-            Self::None => false,
+    pub fn show_for_autocomplete(
+        &self,
+        context: Option<TooltipAutocomplete>,
+    ) -> bool {
+        match (self, context) {
+            (Self::All | Self::Autocomplete, _) => true,
+            (Self::Any(autocompletes), Some(context)) => autocompletes
+                .iter()
+                .any(|autocomplete| autocomplete == &context),
+            (Self::Any(_), None) => false,
+            (Self::None, _) => false,
         }
     }
 }
