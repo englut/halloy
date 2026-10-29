@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+#[cfg(not(target_family = "wasm"))]
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
@@ -7,18 +8,16 @@ use hashbrown::HashMap;
 use iced_core::Color;
 use palette::rgb::{Rgb, Rgba};
 use palette::{FromColor, Hsva, Okhsl, Srgba};
-use rand::prelude::*;
-use rand_chacha::ChaChaRng;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
-use tokio::fs;
 
-use crate::config::buffer;
-
+#[cfg(not(target_family = "wasm"))]
 const DEFAULT_THEME_NAME: &str = "Ferra";
+#[cfg(not(target_family = "wasm"))]
 const DEFAULT_THEME_CONTENT: &str =
     include_str!("../../../assets/themes/ferra.toml");
 
+#[cfg(not(target_family = "wasm"))]
 static DEFAULT_STYLES: LazyLock<Styles> = LazyLock::new(|| {
     toml::from_str(DEFAULT_THEME_CONTENT).expect("parse default theme")
 });
@@ -29,6 +28,7 @@ pub struct Theme {
     pub styles: Styles,
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl Default for Theme {
     fn default() -> Self {
         Self {
@@ -63,6 +63,7 @@ pub struct Styles {
     pub formatting: Formatting,
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl Default for Styles {
     fn default() -> Self {
         *DEFAULT_STYLES
@@ -70,7 +71,10 @@ impl Default for Styles {
 }
 
 impl Styles {
+    #[cfg(not(target_family = "wasm"))]
     pub async fn save(self, path: PathBuf) -> Result<(), Error> {
+        use tokio::fs;
+
         let content = toml::to_string(&self)?;
 
         fs::write(path, &content).await?;
@@ -124,6 +128,7 @@ impl Styles {
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[cfg(not(target_family = "wasm"))]
     #[error("Failed to serialize theme to toml: {0}")]
     Encode(#[from] toml::ser::Error),
     #[error("Failed to write theme file: {0}")]
@@ -610,6 +615,7 @@ thread_local! {
 }
 
 /// Randomizes the hue value of an `iced::Color` based on a seed.
+#[cfg(not(target_family = "wasm"))]
 pub fn randomize_color(original_color: Color, seed: &str) -> Color {
     let key = [
         original_color.r.to_bits(),
@@ -635,7 +641,11 @@ pub fn randomize_color(original_color: Color, seed: &str) -> Color {
     })
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn compute_randomized_color(original_color: Color, seed: &str) -> Color {
+    use rand::prelude::*;
+    use rand_chacha::ChaChaRng;
+
     // Generate a 64-bit hash from the seed string
     let seed_hash = seahash::hash(seed.as_bytes());
 
@@ -655,41 +665,6 @@ fn compute_randomized_color(original_color: Color, seed: &str) -> Color {
 
     // Convert the randomized HSL color back to Color
     from_hsl(randomized_hsl)
-}
-
-pub fn nickname_color(
-    original_color: Color,
-    kind: &crate::buffer::Color,
-    seed: Option<&str>,
-) -> Color {
-    match (kind, seed) {
-        (crate::buffer::Color::Solid, _) | (_, None) => original_color,
-        (crate::buffer::Color::Unique, Some(seed)) => {
-            randomize_color(original_color, seed)
-        }
-        (crate::buffer::Color::Palette(colors), Some(seed)) => {
-            if colors.is_empty() {
-                return original_color;
-            }
-
-            let index =
-                (seahash::hash(seed.as_bytes()) % colors.len() as u64) as usize;
-
-            colors[index]
-        }
-    }
-}
-
-pub fn nickname_alpha(
-    color: Color,
-    is_away: Option<buffer::Alpha>,
-    background_color: Color,
-) -> Color {
-    if let Some(buffer::Alpha::Dimmed(dimmed)) = is_away {
-        dimmed.transform_color(color, background_color)
-    } else {
-        color
-    }
 }
 
 pub fn adapt_nickname_color(

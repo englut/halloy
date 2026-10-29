@@ -70,7 +70,7 @@ pub mod server;
 pub mod sidebar;
 pub mod window;
 
-const CONFIG_TEMPLATE: &str = include_str!("../../config.toml");
+const CONFIG_TEMPLATE: &str = include_str!("../../../config.toml");
 const DEFAULT_THEME_NAME: &str = "ferra";
 
 #[derive(Debug, Clone)]

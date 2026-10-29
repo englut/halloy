@@ -1,48 +1,42 @@
 [package]
 name = "halloy"
-description = "Halloy IRC Client"
-documentation = "https://halloy.chat/"
 version.workspace = true
 authors.workspace = true
-license.workspace = true
 edition.workspace = true
-
-[features]
-default = ["iosevka-font"]
-iosevka-font = []
-tor = ["data/tor"]
+description = "Halloy IRC Client"
+documentation = "https://halloy.chat/"
+license.workspace = true
 
 [workspace]
-members = ["data", "ipc", "irc", "irc/proto"]
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.1.0"
 authors = ["Casper Rogild Storm", "Cory Forsstrom", "Andrew Baldwin"]
-license = "GPL-3.0-or-later"
 edition = "2024"
+license = "GPL-3.0-or-later"
 
 [workspace.dependencies]
-hashbrown = { version = "0.17", features = ['serde'] }
-tokio = { version = "1.52.3" }
-futures = "0.3.32"
-thiserror = "2.0.18"
-chrono = { version = "0.4.40", features = ['serde', 'unstable-locales'] }
-bytes = "1.10.1"
-strum = { version = "0.28.0", features = ["derive"] }
 anyhow = "1.0.97"
-url = { version = "2.5.0", features = ["serde"] }
-tokio-stream = { version = "0.1" }
-timeago = "0.6.0"
-itertools = "0.15.0"
+bytes = "1.10.1"
+chrono = { version = "0.4.40", features = ["serde", "unstable-locales"] }
+const_format = "0.2.36"
 emojis = "0.9.0"
-unicode-segmentation = "1.13.2"
+futures = "0.3.32"
+hashbrown = { version = "0.17", features = ["serde"] }
+iced = { version = "0.15.0-dev", default-features = false }
+itertools = "0.15.0"
+log = { version = "0.4.30", features = ["std"] }
+nom = "8.0"
+nucleo-matcher = "0.3.1"
+palette = "0.7.4"
+percent-encoding = "2.3.2"
 rand = "0.10.1"
 rand_chacha = "0.10.0"
-palette = "0.7.4"
-log = { version = "0.4.30", features = ['std'] }
-uptime_lib = "0.3.1"
-nucleo-matcher = "0.3.1"
-reqwest = { version = "0.13", default-features = false, features = [
+reqwest = {
+  version = "0.13",
+  default-features = false,
+  features = [
     "charset",
     "http2",
     "json",
@@ -50,152 +44,24 @@ reqwest = { version = "0.13", default-features = false, features = [
     "socks",
     "stream",
     "system-proxy",
-] }
+  ]
+}
+strum = { version = "0.28.0", features = ["derive"] }
+thiserror = "2.0.18"
+timeago = "0.6.0"
+tokio = { version = "1.52.3" }
+tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["io"] }
-const_format = "0.2.36"
-iced = { version = "0.15.0-dev", default-features = false }
-nom = "8.0"
-percent-encoding = "2.3.2"
+unicode-segmentation = "1.13.2"
+uptime_lib = "0.3.1"
+url = { version = "2.5.0", features = ["serde"] }
 
-[dependencies]
-hashbrown = { workspace = true }
-tokio = { workspace = true, features = ["rt", "fs", "process"] }
-futures = { workspace = true }
-thiserror = { workspace = true }
-chrono = { workspace = true }
-strum = { workspace = true }
-anyhow = { workspace = true }
-url = { workspace = true }
-tokio-stream = { workspace = true, features = ["fs"] }
-timeago = { workspace = true }
-itertools = { workspace = true }
-emojis = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
-palette = { workspace = true }
-log = { workspace = true }
-uptime_lib = { workspace = true }
-nucleo-matcher = { workspace = true }
-reqwest = { workspace = true }
-const_format = { workspace = true }
-dirs-next = "2.0.0"
-image = "0.25"
-iced = { workspace = true, features = [
-    "wgpu",
-    "tiny-skia",
-    "fira-sans",
-    "tokio",
-    "advanced",
-    "image",
-    "svg",
-    "wayland",
-    "x11",
-    "crisp",
-    "web-colors",
-    "highlighter",
-] }
-percent-encoding = { workspace = true }
-
-data = { version = "0.1.0", path = "data" }
-ipc = { version = "0.1.0", path = "ipc" }
-irc = { version = "0.1.0", path = "irc" }
-
-signal-hook = "0.3.18"
-notify-rust = { version = "4.18", features = [ "images" ] }
-fern = "0.7.1"
-unicode-segmentation = "1.6"
-open = { version = "5.4.4", features = ["shellexecute-on-windows"] }
-bytesize = "2.0.1"
-rodio = "0.22.0"
-humantime = "2.2.0"
-strsim = "0.11.1"
-rfd = { version = "0.15.2", default-features = false, features = [
-    "xdg-portal",
-    "tokio",
-] }
-uuid = { version = "1.23", features = ["v7"] }
-mundy = { version = "0.1.9", default-features = false, features = [
-    "color-scheme",
-    "tokio",
-    "log",
-] }
-
-[dev-dependencies]
-iced = { workspace = true, features = [
-    "wgpu",
-    "tiny-skia",
-    "fira-sans",
-    "tokio",
-    "advanced",
-    "image",
-    "svg",
-    "wayland",
-    "x11",
-    "crisp",
-    "web-colors",
-    "debug",
-] }
-
-[target.'cfg(windows)'.dependencies]
-iced = { workspace = true, features = [
-    "web-colors",
-    "sysinfo",
-] }
-
-[target.'cfg(windows)'.dev-dependencies]
-iced = { workspace = true, features = [
-    "web-colors",
-    "sysinfo",
-    "debug",
-] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6.4"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = [
-    "std",
-    "NSWorkspace",
-    "NSPasteboard",
-    "NSPasteboardItem",
-] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = [
-    "std",
-    "NSString",
-    "NSURL",
-] }
-
-[target.'cfg(windows)'.build-dependencies]
-embed-resource = "3.0.2"
-windows_exe_info = "0.4"
-
-[patch.crates-io]
-iced = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
-iced_core = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
-iced_wgpu = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
-
-[patch."https://github.com/hecrj/cosmic-text.git"]
-cosmic-text = { git = "https://github.com/squidowl/cosmic-text", rev = "f959ab5f753a911ce3c3649c22494b07da5d5340" }
-
-[profile.packaging]
-inherits = "release"
-lto = "fat"
-codegen-units = 1
-
-[profile.ci]
-inherits = "dev"
-opt-level = 0
-debug = false
-
-# Don't optimize dependencies in CI.
-[profile.ci.package."*"]
-opt-level = 0
-
-# Enable a small amount of optimization in the dev profile.
-[profile.dev]
-opt-level = 1
-
-# Enable a large amount of optimization in the dev profile for dependencies.
-[profile.dev.package."*"]
-opt-level = 3
+base64 = "0.23.1"
+derive_more = "2.1.1"
+iced_core = "0.15.0-dev"
+seahash = "4.1.0"
+serde = "1.0.229"
+toml = "1.1.6+spec-1.1.0"
 
 [workspace.lints.clippy]
 cast_lossless = "deny"
@@ -211,20 +77,193 @@ semicolon_if_nothing_returned = "deny"
 uninlined_format_args = "deny"
 unnecessary_wraps = "deny"
 
-[lints]
-workspace = true
-
 [workspace.metadata.typos.default]
 extend-ignore-re = [
-    "(?Rm)^.*(#|//)\\s*spellchecker:disable-line$", # Ignore lines with trailing spellchecker:disable-line
-    "nmap -Pn",
+  "(?Rm)^.*(#|//)\\s*spellchecker:disable-line$",  # Ignore lines with trailing spellchecker:disable-line
+  "nmap -Pn",
 ]
 extend-ignore-identifiers-re = [
-    "ERR_[A-Z]+", # IRC Error Numeric
-    "RPL_[A-Z]+", # IRC Reply Numeric
-    "TehPeGaSuS",
-    "0ther0ne",
+  "ERR_[A-Z]+",  # IRC Error Numeric
+  "RPL_[A-Z]+",  # IRC Reply Numeric
+  "TehPeGaSuS",
+  "0ther0ne",
 ]
 
 [workspace.metadata.typos.files]
 extend-exclude = ["data/tests/message/*.json"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+const_format = { workspace = true }
+dirs-next = "2.0.0"
+emojis = { workspace = true }
+futures = { workspace = true }
+hashbrown = { workspace = true }
+iced = {
+  workspace = true,
+  features = [
+    "advanced",
+    "crisp",
+    "fira-sans",
+    "highlighter",
+    "image",
+    "svg",
+    "tiny-skia",
+    "tokio",
+    "wayland",
+    "web-colors",
+    "wgpu",
+    "x11",
+  ]
+}
+image = "0.25"
+itertools = { workspace = true }
+log = { workspace = true }
+nucleo-matcher = { workspace = true }
+palette = { workspace = true }
+percent-encoding = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+reqwest = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+timeago = { workspace = true }
+tokio = { workspace = true, features = ["fs", "process", "rt"] }
+tokio-stream = { workspace = true, features = ["fs"] }
+uptime_lib = { workspace = true }
+url = { workspace = true }
+
+data = { path = "crates/data", version = "0.1.0" }
+ipc = { path = "crates/ipc", version = "0.1.0" }
+irc = { path = "crates/irc", version = "0.1.0" }
+
+bytesize = "2.0.1"
+fern = "0.7.1"
+humantime = "2.2.0"
+mundy = {
+  version = "0.1.9",
+  default-features = false,
+  features = [
+    "color-scheme",
+    "log",
+    "tokio",
+  ]
+}
+notify-rust = { version = "4.18", features = ["images"] }
+open = { version = "5.4.4", features = ["shellexecute-on-windows"] }
+rfd = {
+  version = "0.15.2",
+  default-features = false,
+  features = [
+    "tokio",
+    "xdg-portal",
+  ]
+}
+rodio = "0.22.0"
+signal-hook = "0.3.18"
+strsim = "0.11.1"
+unicode-segmentation = "1.6"
+uuid = { version = "1.23", features = ["v7"] }
+
+[dev-dependencies]
+iced = {
+  workspace = true,
+  features = [
+    "advanced",
+    "crisp",
+    "debug",
+    "fira-sans",
+    "image",
+    "svg",
+    "tiny-skia",
+    "tokio",
+    "wayland",
+    "web-colors",
+    "wgpu",
+    "x11",
+  ]
+}
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = {
+  version = "0.3.2",
+  default-features = false,
+  features = [
+    "NSPasteboard",
+    "NSPasteboardItem",
+    "NSWorkspace",
+    "std",
+  ]
+}
+objc2-foundation = {
+  version = "0.3.2",
+  default-features = false,
+  features = [
+    "NSString",
+    "NSURL",
+    "std",
+  ]
+}
+
+[target."cfg(windows)".dependencies]
+iced = {
+  workspace = true,
+  features = [
+    "sysinfo",
+    "web-colors",
+  ]
+}
+
+[target."cfg(windows)".dev-dependencies]
+iced = {
+  workspace = true,
+  features = [
+    "debug",
+    "sysinfo",
+    "web-colors",
+  ]
+}
+
+[target."cfg(windows)".build-dependencies]
+embed-resource = "3.0.2"
+windows_exe_info = "0.4"
+
+[features]
+default = ["iosevka-font"]
+iosevka-font = []
+tor = ["data/tor"]
+
+[lints]
+workspace = true
+
+[patch.crates-io]
+iced = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
+iced_core = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
+iced_wgpu = { git = "https://github.com/squidowl/iced", rev = "138b1d0ddc86e108f7d4f25765afca126a8dc166" }
+
+[patch."https://github.com/hecrj/cosmic-text.git"]
+cosmic-text = { git = "https://github.com/squidowl/cosmic-text", rev = "f959ab5f753a911ce3c3649c22494b07da5d5340" }
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.ci]
+inherits = "dev"
+opt-level = 0
+debug = false
+
+# Don't optimize dependencies in CI.
+[profile.ci.package."*"]
+opt-level = 0
+
+[profile.packaging]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

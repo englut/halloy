@@ -48,25 +48,25 @@ pub enum Internal {
 impl Internal {
     pub fn bytes(&self) -> Vec<u8> {
         match self {
-            Internal::Dong => include_bytes!("../../sounds/dong.ogg").to_vec(),
-            Internal::Peck => include_bytes!("../../sounds/peck.ogg").to_vec(),
-            Internal::Ring => include_bytes!("../../sounds/ring.ogg").to_vec(),
+            Internal::Dong => include_bytes!("../../../sounds/dong.ogg").to_vec(),
+            Internal::Peck => include_bytes!("../../../sounds/peck.ogg").to_vec(),
+            Internal::Ring => include_bytes!("../../../sounds/ring.ogg").to_vec(),
             Internal::Squeak => {
-                include_bytes!("../../sounds/squeak.ogg").to_vec()
+                include_bytes!("../../../sounds/squeak.ogg").to_vec()
             }
             Internal::Whistle => {
-                include_bytes!("../../sounds/whistle.ogg").to_vec()
+                include_bytes!("../../../sounds/whistle.ogg").to_vec()
             }
-            Internal::Bonk => include_bytes!("../../sounds/bonk.ogg").to_vec(),
-            Internal::Sing => include_bytes!("../../sounds/sing.ogg").to_vec(),
+            Internal::Bonk => include_bytes!("../../../sounds/bonk.ogg").to_vec(),
+            Internal::Sing => include_bytes!("../../../sounds/sing.ogg").to_vec(),
             Internal::Bloop => {
-                include_bytes!("../../sounds/bloop.ogg").to_vec()
+                include_bytes!("../../../sounds/bloop.ogg").to_vec()
             }
-            Internal::Drop => include_bytes!("../../sounds/drop.ogg").to_vec(),
+            Internal::Drop => include_bytes!("../../../sounds/drop.ogg").to_vec(),
             Internal::Tweep => {
-                include_bytes!("../../sounds/tweep.ogg").to_vec()
+                include_bytes!("../../../sounds/tweep.ogg").to_vec()
             }
-            Internal::Zone => include_bytes!("../../sounds/zone.ogg").to_vec(),
+            Internal::Zone => include_bytes!("../../../sounds/zone.ogg").to_vec(),
         }
     }
 }

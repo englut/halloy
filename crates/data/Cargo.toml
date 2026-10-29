@@ -1,0 +1,114 @@
+[package]
+name = "data"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+const_format = { workspace = true }
+emojis = { workspace = true }
+futures = { workspace = true }
+hashbrown = { workspace = true }
+iced = {
+  workspace = true,
+  features = [
+    "sysinfo",
+    "tokio",
+    "wayland",
+  ]
+}
+itertools = { workspace = true }
+keyring-core = "1"
+log = { workspace = true }
+nom = { workspace = true }
+nucleo-matcher = { workspace = true }
+palette = { workspace = true }
+percent-encoding = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+reqwest = { workspace = true }
+rusqlite = { version = "0.38", features = ["bundled"] }
+strum = { workspace = true }
+thiserror = { workspace = true }
+timeago = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "rt"] }
+tokio-stream = { workspace = true, features = ["fs", "time"] }
+tokio-util = { workspace = true }
+unicode-segmentation = { workspace = true }
+url = { workspace = true }
+
+any_ascii = "0.3.3"
+base64 = "0.23.0"
+derive_more = { version = "2.0.1", features = ["full"] }
+dirs-next = "2.0.0"
+display-info = "0.5.9"
+equivalent = "1.0"
+fancy-regex = "0.19"
+flate2 = "1.0"
+gif = "0.14.1"
+hex = "0.4.3"
+html-escape = "0.2.13"
+iced_core = "0.15.0-dev"
+iced_wgpu = "0.15.0-dev"
+idna = "1.1.0"
+image = "0.25.10"
+indexmap = { version = "2.14", features = ["serde", "std"] }
+infer = "0.22"
+mime_guess = "2.0.5"
+sanitize-filename = "0.6.0"
+seahash = "4.1.0"
+serde_ignored = "0.1"
+serde_json = "1.0"
+serde-untagged = "0.1"
+sha2 = "0.11.0"
+sys-locale = "0.3"
+toml = { version = "1.1.4", features = ["preserve_order"] }
+unicode-security = "0.1.2"
+version-compare = "0.2"
+walkdir = "2.5.0"
+xdg = "3.0.0"
+
+[dependencies.irc]
+path = "../irc"
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive", "rc"]
+
+[dependencies.theme]
+path = "../theme"
+
+[dev-dependencies]
+serde_test = "1.0"
+tempfile = "3"
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+zbus-secret-service-keyring-store = {
+  version = "1",
+  features = [
+    "rt-tokio-crypto-rust",
+  ]
+}
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = {
+  version = "1",
+  default-features = false,
+  features = [
+    "keychain",
+  ]
+}
+
+[target."cfg(windows)".dependencies]
+windows-native-keyring-store = { version = "1", default-features = false }
+
+[features]
+message_tests = ["iced/tokio"]
+tor = ["irc/tor"]
+
+[lints]
+workspace = true
