@@ -83,9 +83,7 @@ apple-native-keyring-store = { version = "1", default-features = false, features
 ] }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
-zbus-secret-service-keyring-store = { version = "1", features = [
-    "rt-tokio-crypto-rust",
-] }
+oo7 = "0.6.0"
 
 [target.'cfg(windows)'.dependencies]
 windows-native-keyring-store = { version = "1", default-features = false }

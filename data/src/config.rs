@@ -57,6 +57,8 @@ pub mod filehost;
 pub mod highlights;
 pub mod inclusivities;
 pub mod keyring;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub mod keyring_store;
 pub mod keys;
 pub mod logs;
 pub mod metadata;

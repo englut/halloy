@@ -89,30 +89,11 @@ pub fn server_proxy_password_key(server: &str, kind: &str) -> String {
 }
 
 pub async fn get_password(key: &str) -> Result<Option<String>, Error> {
-    let key = key.to_string();
-    let task_key = key.clone();
-
-    tokio::task::spawn_blocking(move || get_password_blocking(&task_key))
-        .await
-        .map_err(|error| keyring_error(key, error))?
-}
-
-pub async fn set_password(key: &str, password: &str) -> Result<(), Error> {
-    let key = key.to_string();
-    let password = password.to_string();
-    let task_key = key.clone();
-
-    tokio::task::spawn_blocking(move || {
-        set_password_blocking(&task_key, &password)
-    })
-    .await
-    .map_err(|error| keyring_error(key, error))?
-}
-
-fn get_password_blocking(key: &str) -> Result<Option<String>, Error> {
     #[cfg(windows)]
     validate_key(key)?;
-    ensure_default_store().map_err(|error| keyring_error(key, error))?;
+    ensure_default_store()
+        .await
+        .map_err(|error| keyring_error(key, error))?;
 
     let entry = keyring_core::Entry::new(SERVICE, key)
         .map_err(|error| keyring_error(key, error))?;
@@ -124,10 +105,12 @@ fn get_password_blocking(key: &str) -> Result<Option<String>, Error> {
     }
 }
 
-fn set_password_blocking(key: &str, password: &str) -> Result<(), Error> {
+pub async fn set_password(key: &str, password: &str) -> Result<(), Error> {
     #[cfg(windows)]
     validate_key(key)?;
-    ensure_default_store().map_err(|error| keyring_error(key, error))?;
+    ensure_default_store()
+        .await
+        .map_err(|error| keyring_error(key, error))?;
 
     let entry = keyring_core::Entry::new(SERVICE, key)
         .map_err(|error| keyring_error(key, error))?;
@@ -157,12 +140,12 @@ fn exceeds_windows_username_limit(key: &str) -> bool {
     key.encode_utf16().count() > WINDOWS_MAX_USERNAME_LEN
 }
 
-fn ensure_default_store() -> keyring_core::Result<()> {
+async fn ensure_default_store() -> keyring_core::Result<()> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());
     }
 
-    set_platform_default_store()
+    set_platform_default_store().await
 }
 
 fn keyring_error(key: impl Into<String>, error: impl ToString) -> Error {
@@ -173,7 +156,7 @@ fn keyring_error(key: impl Into<String>, error: impl ToString) -> Error {
 }
 
 #[cfg(target_os = "macos")]
-fn set_platform_default_store() -> keyring_core::Result<()> {
+async fn set_platform_default_store() -> keyring_core::Result<()> {
     use apple_native_keyring_store::keychain::Store;
 
     keyring_core::set_default_store(Store::new()?);
@@ -181,15 +164,15 @@ fn set_platform_default_store() -> keyring_core::Result<()> {
 }
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-fn set_platform_default_store() -> keyring_core::Result<()> {
-    use zbus_secret_service_keyring_store::Store;
+async fn set_platform_default_store() -> keyring_core::Result<()> {
+    use super::keyring_store::Store;
 
-    keyring_core::set_default_store(Store::new()?);
+    keyring_core::set_default_store(Store::new().await?);
     Ok(())
 }
 
 #[cfg(windows)]
-fn set_platform_default_store() -> keyring_core::Result<()> {
+async fn set_platform_default_store() -> keyring_core::Result<()> {
     use windows_native_keyring_store::Store;
 
     keyring_core::set_default_store(Store::new()?);
@@ -202,7 +185,7 @@ fn set_platform_default_store() -> keyring_core::Result<()> {
     target_os = "freebsd",
     windows
 )))]
-fn set_platform_default_store() -> keyring_core::Result<()> {
+async fn set_platform_default_store() -> keyring_core::Result<()> {
     Err(keyring_core::Error::NotSupportedByStore(
         "No platform keyring store is configured for this target".to_string(),
     ))
