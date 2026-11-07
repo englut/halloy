@@ -1,5 +1,5 @@
-use data::appearance::theme::{nickname_alpha, nickname_color};
-use data::config::buffer;
+use data::buffer::nickname_color;
+use data::config::buffer::{self, nickname_alpha};
 use data::message;
 use data::message::source::server::{Kind, StandardReply};
 use iced::widget::text::{Catalog, Style, StyleFn};

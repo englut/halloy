@@ -449,6 +449,18 @@ impl<'de> Deserialize<'de> for Alpha {
     }
 }
 
+pub fn nickname_alpha(
+    color: Color,
+    is_away: Option<crate::config::buffer::Alpha>,
+    background_color: Color,
+) -> Color {
+    if let Some(crate::config::buffer::Alpha::Dimmed(dimmed)) = is_away {
+        dimmed.transform_color(color, background_color)
+    } else {
+        color
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ServerMessages {

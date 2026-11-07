@@ -1,4 +1,5 @@
-use data::appearance::theme::{FontStyle, nickname_color};
+use data::appearance::theme::FontStyle;
+use data::buffer::nickname_color;
 use data::config::display::nickname::Metadata;
 use data::target::Query;
 use data::{Config, Server, User, isupport, message, metadata, target};
