@@ -500,11 +500,13 @@ show = "all"
 
 Change the sidebar typing indicator's display position.
 
-Due to space constraints, `"left"` position displays one indicator at a time.
+The default position is set to `"right"`. `"left"` shows one indicator at a time,
+with highlights taking precedence. Use of `"left-all"` will display indicators
+side-by-side.
 
 ```toml
 # Type: string
-# Values: "left", "right"
+# Values: "left", "left-single", "right"
 # Default: "right"
 
 [sidebar.typing_indicator]

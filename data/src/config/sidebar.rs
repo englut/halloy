@@ -407,6 +407,7 @@ pub enum TypingIndicatorBuffer {
 #[serde(rename_all = "kebab-case")]
 pub enum TypingIndicatorPosition {
     Left,
+    LeftAll,
     #[default]
     Right,
 }
@@ -435,6 +436,10 @@ impl TypingIndicator {
 
     pub fn is_position_left(&self) -> bool {
         matches!(self.position, TypingIndicatorPosition::Left)
+    }
+
+    pub fn is_position_left_all(&self) -> bool {
+        matches!(self.position, TypingIndicatorPosition::LeftAll)
     }
 
     pub fn is_position_right(&self) -> bool {

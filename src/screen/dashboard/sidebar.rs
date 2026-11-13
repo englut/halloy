@@ -568,6 +568,7 @@ impl Sidebar {
                 Some(BufferIcon::Icon(Icon::Internal(icon))),
                 badge,
                 dimensions,
+                0.0,
             )
             .into_iter()
             .next(),
@@ -1657,9 +1658,12 @@ fn upstream_buffer_button<'a>(
                 },
             )))
         }
-    } else if config.sidebar.typing_indicator.is_position_left()
-        && ((!show_highlight_icon && is_channel_with_typing)
-            || is_query_with_typing)
+    } else if (config.sidebar.typing_indicator.is_position_left()
+        && !show_highlight_icon
+        && is_channel_with_typing)
+        || (config.sidebar.typing_indicator.is_position_left_all()
+            && is_channel_with_typing)
+        || is_query_with_typing
     {
         typing::animate_for_sidebar::<_>(
             *typing_animation,
@@ -1730,7 +1734,25 @@ fn upstream_buffer_button<'a>(
 
     let mut content = row![].align_y(iced::Alignment::Center);
 
-    content = content.extend(sidebar_icon(config, icon, indicator, dimensions));
+    let icon_space_reserved =
+        if config.sidebar.typing_indicator.is_position_left_all()
+            && (config
+                .sidebar
+                .can_show_typing(TypingIndicatorBuffer::Channel)
+                || config.sidebar.can_show_typing(TypingIndicatorBuffer::Query))
+        {
+            dimensions.typing_indicator_width as f32
+        } else {
+            0.0
+        };
+
+    content = content.extend(sidebar_icon(
+        config,
+        icon,
+        indicator,
+        dimensions,
+        icon_space_reserved,
+    ));
 
     content = content.push(
         row(upstream_buffer_title(
@@ -2228,11 +2250,24 @@ fn internal_buffer_button<'a>(
 
     let mut content = row![].align_y(iced::Alignment::Center);
 
+    let icon_space_reserved =
+        if config.sidebar.typing_indicator.is_position_left_all()
+            && (config
+                .sidebar
+                .can_show_typing(TypingIndicatorBuffer::Channel)
+                || config.sidebar.can_show_typing(TypingIndicatorBuffer::Query))
+        {
+            dimensions.typing_indicator_width as f32
+        } else {
+            0.0
+        };
+
     content = content.extend(sidebar_icon(
         config,
         icon.map(|icon| BufferIcon::Icon(Icon::Internal(icon))),
         badge,
         dimensions,
+        icon_space_reserved,
     ));
 
     content = content.push(
@@ -2404,6 +2439,7 @@ fn sidebar_icon<'a>(
     icon: Option<BufferIcon<'a>>,
     indicator: Option<(TextColorSvg<'a, Theme>, u32)>,
     dimensions: Dimensions,
+    icon_space_reserved: f32,
 ) -> impl IntoIterator<Item = Element<'a, Message>> {
     let (icon, icon_height, icon_left_spacing): (
         Option<Element<'a, Message>>,
@@ -2444,7 +2480,8 @@ fn sidebar_icon<'a>(
                                 Space::new()
                                     .height(dimensions.icon_badge_padding),
                                 icon
-                            ]
+                            ],
+                            Space::new().width(icon_space_reserved as u32)
                         ]
                         .align_y(iced::Alignment::Center),
                         badge,
@@ -2459,15 +2496,47 @@ fn sidebar_icon<'a>(
                     / 2.0,
             )
         }
-        Some(BufferIcon::Typing(typing_indicator)) => (
-            Some(typing_indicator),
-            dimensions.typing_indicator_height,
-            dimensions
-                .max_indicator_size()
-                .saturating_sub(dimensions.typing_indicator_width)
-                as f32
-                / 2.0,
-        ),
+        Some(BufferIcon::Typing(typing_indicator)) => {
+            if config.sidebar.typing_indicator.is_position_left_all()
+                && let Some((indicator, _)) = indicator
+            {
+                (
+                    Some(
+                        row![
+                            sidebar_icon_badge(
+                                indicator,
+                                dimensions.icon_badge_size,
+                                dimensions.icon_badge_padding as f32 / 2.0,
+                            ),
+                            Space::new().width(
+                                dimensions.icon_badge_padding as u32 * 2
+                            ),
+                            typing_indicator,
+                        ]
+                        .align_y(iced::Alignment::Center)
+                        .into(),
+                    ),
+                    dimensions
+                        .icon_badge_size
+                        .max(dimensions.typing_indicator_height),
+                    dimensions
+                        .max_indicator_size()
+                        .saturating_sub(dimensions.icon_badge_size)
+                        as f32
+                        / 2.0,
+                )
+            } else {
+                (
+                    Some(typing_indicator),
+                    dimensions.typing_indicator_height,
+                    dimensions
+                        .max_indicator_size()
+                        .saturating_sub(dimensions.typing_indicator_width)
+                        as f32
+                        / 2.0,
+                )
+            }
+        }
         None => {
             if let Some((indicator, _)) = indicator {
                 (
@@ -2500,7 +2569,10 @@ fn sidebar_icon<'a>(
             vec![
                 stack![
                     Space::new()
-                        .width(dimensions.max_icon_width())
+                        .width(
+                            icon_space_reserved as u32
+                                + dimensions.max_icon_width()
+                        )
                         .height(icon_height),
                     icon.map(|icon| row![
                         Space::new().width(icon_left_spacing),
